@@ -11,7 +11,9 @@ MSRS/
 
 # Third-party source repositories; record their upstream URLs in documentation instead
 PearlGAN/
-pytorch-CycleGAN-and-pix2pix/
+
+# Local Git metadata preserved when vendoring external source trees.
+.git-backups/
 
 # Generated training artifacts
 runs/
