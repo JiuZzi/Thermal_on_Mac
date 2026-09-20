@@ -5,6 +5,7 @@
 # Local datasets (too large and often license-restricted)
 FLIR_ADAS_v2/
 FLIR_datasets/
+FLIR_protocol_v2/
 LLVIP/
 MSRS/
 

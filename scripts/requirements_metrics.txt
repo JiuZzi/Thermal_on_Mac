@@ -1,0 +1,5 @@
+# Keep your existing PyTorch build; install only the evaluator dependencies.
+torchmetrics[image]
+torch-fidelity
+scikit-image
+matplotlib
