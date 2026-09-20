@@ -1,0 +1,28 @@
+# macOS and editor metadata
+.DS_Store
+.vscode/
+
+# Local datasets (too large and often license-restricted)
+FLIR_ADAS_v2/
+FLIR_datasets/
+LLVIP/
+MSRS/
+
+# Third-party source repositories; record their upstream URLs in documentation instead
+PearlGAN/
+pytorch-CycleGAN-and-pix2pix/
+
+# Generated training artifacts
+runs/
+checkpoints/
+results/
+logs/
+wandb/
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# Python caches
+__pycache__/
+*.py[cod]
