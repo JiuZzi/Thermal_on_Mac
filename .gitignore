@@ -210,3 +210,40 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Thermal project: local datasets, generated outputs, and model weights
+FLIR_datasets/
+datasets/
+data/
+
+# Training / inference outputs
+runs/
+results/
+checkpoints/
+logs/
+wandb/
+outputs/
+
+# Model weights and exported models
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# Python and Jupyter cache
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Local environments and OS files
+.venv/
+venv/
+env/
+.env
+.DS_Store
+Thumbs.db
+
+# FLIR ADAS raw data / test videos
+FLIR_ADAS_v2.zip
+video_rgb_test/
+video_thermal_test/
