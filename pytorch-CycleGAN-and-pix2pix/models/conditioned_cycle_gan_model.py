@@ -1,4 +1,4 @@
-"""CycleGAN with a condition interface; zero maps define the C0-cap control."""
+"""CycleGAN with C0-cap zero conditions or C1 hard Canny edges."""
 
 import itertools
 
@@ -14,20 +14,29 @@ class ConditionedCycleGANModel(CycleGANModel):
         parser = CycleGANModel.modify_commandline_options(parser, is_train)
         parser.add_argument(
             "--condition_mode",
-            choices=("zero",),
+            choices=("zero", "canny"),
             default="zero",
-            help="Condition maps supplied to the TIR-to-RGB generator; zero is C0-cap.",
+            help="zero is C0-cap; canny supplies a hard TIR edge map for C1.",
         )
+        parser.add_argument("--edge_sigma", type=float, default=1.0)
+        parser.add_argument("--edge_low_threshold", type=float, default=0.08)
+        parser.add_argument("--edge_high_threshold", type=float, default=0.16)
         return parser
 
     def __init__(self, opt):
         if opt.direction != "BtoA" or opt.input_nc != 1 or opt.output_nc != 3:
-            raise ValueError("C0-cap requires --direction BtoA --input_nc 1 --output_nc 3")
+            raise ValueError("Conditioned CycleGAN requires --direction BtoA --input_nc 1 --output_nc 3")
         if opt.isTrain and opt.lambda_identity != 0:
-            raise ValueError("C0-cap requires --lambda_identity 0, matching the C0 baseline")
+            raise ValueError("Conditioned CycleGAN requires --lambda_identity 0, matching the C0 baseline")
 
         super().__init__(opt)
-        self.netG_A = ConditionedGenerator(self.netG_A, opt.condition_mode)
+        self.netG_A = ConditionedGenerator(
+            self.netG_A,
+            opt.condition_mode,
+            edge_sigma=opt.edge_sigma,
+            edge_low_threshold=opt.edge_low_threshold,
+            edge_high_threshold=opt.edge_high_threshold,
+        )
 
         if self.isTrain:
             # The parent optimizer was constructed before G_A was wrapped.
