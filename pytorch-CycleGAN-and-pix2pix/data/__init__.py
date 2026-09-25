@@ -12,11 +12,21 @@ See our template dataset class 'template_dataset.py' for more details.
 """
 
 import importlib
+import random
+import numpy as np
 import torch.utils.data
+import torch
 from torch.utils.data.distributed import DistributedSampler
 import torch.distributed as dist
 import os
 from data.base_dataset import BaseDataset
+
+
+def seed_worker(worker_id):
+    """Seed Python and NumPy from PyTorch's per-worker seed."""
+    worker_seed = torch.initial_seed() % (2**32)
+    random.seed(worker_seed)
+    np.random.seed(worker_seed)
 
 
 def find_dataset_using_name(dataset_name):
@@ -85,7 +95,17 @@ class CustomDatasetDataLoader:
             self.sampler = None
             shuffle = not opt.serial_batches
 
-        self.dataloader = torch.utils.data.DataLoader(self.dataset, batch_size=opt.batch_size, shuffle=shuffle, sampler=self.sampler, num_workers=int(opt.num_threads))
+        seed = getattr(opt, "seed", None)
+        generator = torch.Generator().manual_seed(seed) if seed is not None else None
+        self.dataloader = torch.utils.data.DataLoader(
+            self.dataset,
+            batch_size=opt.batch_size,
+            shuffle=shuffle,
+            sampler=self.sampler,
+            num_workers=int(opt.num_threads),
+            worker_init_fn=seed_worker if seed is not None else None,
+            generator=generator,
+        )
 
     def load_data(self):
         return self
