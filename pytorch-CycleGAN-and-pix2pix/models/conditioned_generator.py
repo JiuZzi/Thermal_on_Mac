@@ -6,10 +6,12 @@ from torch import nn
 
 
 class ConditionedGenerator(nn.Module):
-    """Adapt [TIR, edge, trusted edge] to the original one-channel generator.
+    """Pass [TIR, edge, trusted edge] through the selected fusion interface.
 
     The zero mode is the C0-cap control. Canny mode is the C1 hard-edge
-    control. In both modes, the trusted-edge channel stays zero.
+    control. In both modes, the trusted-edge channel stays zero. The legacy
+    adapter fuses to one channel; direct fusion keeps all three channels for
+    the generator's first convolution.
     """
 
     def __init__(
@@ -19,21 +21,27 @@ class ConditionedGenerator(nn.Module):
         edge_sigma: float = 1.0,
         edge_low_threshold: float = 0.08,
         edge_high_threshold: float = 0.16,
+        fusion_mode: str = "adapter",
     ):
         super().__init__()
         if condition_mode not in ("zero", "canny"):
             raise ValueError(f"Unsupported condition mode: {condition_mode}")
         if edge_sigma <= 0 or not (0 <= edge_low_threshold < edge_high_threshold <= 1):
             raise ValueError("Canny requires sigma > 0 and 0 <= low < high <= 1")
+        if fusion_mode not in ("adapter", "direct"):
+            raise ValueError(f"Unsupported fusion mode: {fusion_mode}")
         self.condition_mode = condition_mode
+        self.fusion_mode = fusion_mode
         self.edge_sigma = edge_sigma
         self.edge_low_threshold = edge_low_threshold
         self.edge_high_threshold = edge_high_threshold
-        self.adapter = nn.Conv2d(3, 1, kernel_size=3, padding=1)
+        self.adapter = nn.Conv2d(3, 1, kernel_size=3, padding=1) if fusion_mode == "adapter" else None
         self.backbone = backbone
 
     def reset_adapter_to_identity(self) -> None:
         """Initially pass TIR through unchanged, despite the extra interface."""
+        if self.adapter is None:
+            raise RuntimeError("Direct fusion has no adapter to reset")
         with torch.no_grad():
             self.adapter.weight.zero_()
             self.adapter.bias.zero_()
@@ -73,5 +81,7 @@ class ConditionedGenerator(nn.Module):
         if tir.ndim != 4 or tir.shape[1] != 1:
             raise ValueError(f"Expected one-channel TIR tensor [N, 1, H, W], got {tuple(tir.shape)}")
         edge, trusted_edge = self.make_condition(tir)
-        adapted_tir = self.adapter(torch.cat((tir, edge, trusted_edge), dim=1))
-        return self.backbone(adapted_tir)
+        conditioned_tir = torch.cat((tir, edge, trusted_edge), dim=1)
+        if self.adapter is not None:
+            conditioned_tir = self.adapter(conditioned_tir)
+        return self.backbone(conditioned_tir)
