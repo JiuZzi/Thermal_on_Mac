@@ -49,6 +49,76 @@ class ConditionedFusionTests(unittest.TestCase):
         generator(thermal).sum().backward()
         self.assertGreater(backbone.weight.grad[:, 1].abs().sum().item(), 0)
 
+    def test_soft_single_preserves_hard_edges_and_is_continuous(self):
+        thermal = self.thermal_step()
+        hard_model = ConditionedGenerator(nn.Identity(), condition_mode="canny", fusion_mode="direct")
+        soft_model = ConditionedGenerator(nn.Identity(), condition_mode="soft_single", fusion_mode="direct")
+        hard, _ = hard_model.make_condition(thermal)
+        soft, reserved = soft_model.make_condition(thermal)
+
+        self.assertEqual(soft.shape, thermal.shape)
+        self.assertTrue(torch.all((soft >= 0) & (soft <= 1)))
+        torch.testing.assert_close(soft[hard.bool()], torch.ones_like(soft[hard.bool()]))
+        self.assertTrue(torch.any((soft > 0) & (soft < 1)).item())
+        self.assertEqual(torch.count_nonzero(reserved).item(), 0)
+
+    def test_soft_multi_is_equal_mean_of_softened_thresholds(self):
+        thermal = self.thermal_step()
+        thresholds = (0.12, 0.16, 0.20)
+        multi = ConditionedGenerator(
+            nn.Identity(), condition_mode="soft_multi", fusion_mode="direct",
+            soft_high_thresholds=thresholds,
+        )
+        expected = torch.stack([
+            ConditionedGenerator(
+                nn.Identity(), condition_mode="soft_single", fusion_mode="direct",
+                edge_low_threshold=high / 2, edge_high_threshold=high,
+            ).make_condition(thermal)[0]
+            for high in thresholds
+        ]).mean(0)
+        actual, _ = multi.make_condition(thermal)
+
+        torch.testing.assert_close(actual, expected, atol=1e-7, rtol=0)
+
+    def test_soft_modes_handle_empty_edges_and_validate_configuration(self):
+        flat = torch.zeros_like(self.thermal_step())
+        for mode in ("soft_single", "soft_multi"):
+            generator = ConditionedGenerator(nn.Identity(), condition_mode=mode, fusion_mode="direct")
+            edge, _ = generator.make_condition(flat)
+            self.assertEqual(torch.count_nonzero(edge).item(), 0)
+        with self.assertRaisesRegex(ValueError, "width"):
+            ConditionedGenerator(nn.Identity(), condition_mode="soft_single", edge_soft_width=0)
+        with self.assertRaisesRegex(ValueError, "include the C1"):
+            ConditionedGenerator(
+                nn.Identity(), condition_mode="soft_multi", soft_high_thresholds=(0.10, 0.20),
+            )
+
+    def test_soft_modes_reject_legacy_adapter_in_cycle_gan(self):
+        opt = SimpleNamespace(
+            direction="BtoA", input_nc=1, output_nc=3, isTrain=False,
+            condition_mode="soft_single", fusion_mode="adapter",
+            checkpoints_dir="unused", name="soft_adapter_error", device=torch.device("cpu"),
+            preprocess="crop", ngf=8, netG="resnet_6blocks", norm="instance",
+            no_dropout=True, init_type="normal", init_gain=0.02,
+        )
+        with self.assertRaisesRegex(ValueError, "fusion_mode direct"):
+            ConditionedCycleGANModel(opt)
+
+    def test_soft_edge_override_can_measure_generator_reliance(self):
+        backbone = nn.Conv2d(3, 1, kernel_size=1, bias=False)
+        with torch.no_grad():
+            backbone.weight.zero_()
+            backbone.weight[0, 1, 0, 0] = 1
+        generator = ConditionedGenerator(backbone, condition_mode="soft_single", fusion_mode="direct")
+        thermal = self.thermal_step()
+        normal = generator(thermal)
+        without_edge = generator(thermal, edge_override=torch.zeros_like(thermal))
+
+        self.assertGreater((normal - without_edge).abs().mean().item(), 0)
+        self.assertEqual(torch.count_nonzero(without_edge).item(), 0)
+        with self.assertRaisesRegex(ValueError, "shape"):
+            generator(thermal, edge_override=torch.zeros((1, 2, 32, 32)))
+
     def test_direct_model_optimizer_uses_three_channel_backbone(self):
         opt = SimpleNamespace(
             isTrain=True,

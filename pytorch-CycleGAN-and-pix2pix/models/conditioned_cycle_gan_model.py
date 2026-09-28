@@ -1,5 +1,6 @@
-"""CycleGAN with C0-cap zero conditions or C1 hard Canny edges."""
+"""CycleGAN with zero, hard Canny, or fixed soft Canny conditions."""
 
+import argparse
 import itertools
 
 import torch
@@ -9,19 +10,36 @@ from .cycle_gan_model import CycleGANModel
 from . import networks
 
 
+def parse_soft_high_thresholds(value: str) -> tuple[float, ...]:
+    try:
+        thresholds = tuple(float(part.strip()) for part in value.split(","))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Expected comma-separated Canny high thresholds") from error
+    if len(thresholds) < 2 or any(not (0 < threshold <= 1) for threshold in thresholds):
+        raise argparse.ArgumentTypeError("Provide at least two Canny high thresholds in (0, 1]")
+    if tuple(sorted(set(thresholds))) != thresholds:
+        raise argparse.ArgumentTypeError("Canny high thresholds must be unique and increasing")
+    return thresholds
+
+
 class ConditionedCycleGANModel(CycleGANModel):
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
         parser = CycleGANModel.modify_commandline_options(parser, is_train)
         parser.add_argument(
             "--condition_mode",
-            choices=("zero", "canny"),
+            choices=("zero", "canny", "soft_single", "soft_multi"),
             default="zero",
-            help="zero is C0-cap; canny supplies a hard TIR edge map for C1.",
+            help="zero=C0-cap, canny=C1, soft_single=C2a, soft_multi=C2b.",
         )
         parser.add_argument("--edge_sigma", type=float, default=1.0)
         parser.add_argument("--edge_low_threshold", type=float, default=0.08)
         parser.add_argument("--edge_high_threshold", type=float, default=0.16)
+        parser.add_argument("--edge_soft_width", type=float, default=1.0,
+                            help="Gaussian distance-decay width in pixels for C2a/C2b.")
+        parser.add_argument("--soft_high_thresholds", type=parse_soft_high_thresholds,
+                            default=(0.12, 0.16, 0.20),
+                            help="Increasing high thresholds for C2b, separated by commas; equal weights.")
         parser.add_argument(
             "--fusion_mode",
             choices=("adapter", "direct"),
@@ -38,6 +56,8 @@ class ConditionedCycleGANModel(CycleGANModel):
 
         super().__init__(opt)
         fusion_mode = getattr(opt, "fusion_mode", "adapter")
+        if opt.condition_mode in ("soft_single", "soft_multi") and fusion_mode != "direct":
+            raise ValueError("C2a/C2b require --fusion_mode direct to match the direct-fusion C1 control")
         backbone = self.netG_A
         if fusion_mode == "direct":
             backbone = networks.define_G(
@@ -50,6 +70,8 @@ class ConditionedCycleGANModel(CycleGANModel):
             edge_sigma=opt.edge_sigma,
             edge_low_threshold=opt.edge_low_threshold,
             edge_high_threshold=opt.edge_high_threshold,
+            edge_soft_width=getattr(opt, "edge_soft_width", 1.0),
+            soft_high_thresholds=getattr(opt, "soft_high_thresholds", (0.12, 0.16, 0.20)),
             fusion_mode=fusion_mode,
         )
 
