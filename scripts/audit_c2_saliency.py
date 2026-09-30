@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preview C2c's importance-guided contour map against the unchanged C2b.
+"""Preview the former position-guided C2c against the unchanged C2b.
 
 Without --saliency-dir, importance is a smooth middle-third position prior,
 not semantic object saliency. An external directory may contain predicted
@@ -52,7 +52,7 @@ def parse_args() -> argparse.Namespace:
         args.saliency_sigmas = tuple(float(x.strip()) for x in args.saliency_sigmas.split(","))
         args.soft_high_thresholds = tuple(float(x.strip()) for x in args.soft_high_thresholds.split(","))
         ConditionedGenerator(
-            nn.Identity(), "soft_saliency", fusion_mode="direct",
+            nn.Identity(), "soft_saliency_position", fusion_mode="direct",
             edge_low_threshold=args.edge_low_threshold,
             edge_high_threshold=args.edge_high_threshold,
             edge_soft_width=args.edge_soft_width,
@@ -159,7 +159,7 @@ def main() -> None:
         soft_high_thresholds=args.soft_high_thresholds,
     )
     c2c = ConditionedGenerator(
-        nn.Identity(), "soft_saliency", fusion_mode="direct",
+        nn.Identity(), "soft_saliency_position", fusion_mode="direct",
         edge_low_threshold=args.edge_low_threshold,
         edge_high_threshold=args.edge_high_threshold,
         edge_soft_width=args.edge_soft_width,

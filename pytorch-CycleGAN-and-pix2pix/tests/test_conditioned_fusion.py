@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+import numpy as np
 import torch
 from torch import nn
 
@@ -12,7 +13,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from models.conditioned_cycle_gan_model import ConditionedCycleGANModel
 from models.conditioned_generator import ConditionedGenerator
-from models.saliency_edges import center_importance, make_saliency_edge, soft_multi_at_sigma
+from models.saliency_edges import (
+    center_importance, make_adaptive_saliency_edge, make_saliency_edge,
+    soft_multi_at_sigma, structure_texture_importance,
+)
 
 
 class ConditionedFusionTests(unittest.TestCase):
@@ -87,11 +91,9 @@ class ConditionedFusionTests(unittest.TestCase):
             nn.Identity(), condition_mode="soft_saliency", fusion_mode="direct",
         )
         edge, reserved = model.make_condition(thermal)
-        importance = center_importance(32, 32, 0.8, 0.2, 24 / 256)
         image = (thermal[0, 0].numpy() + 1.0) / 2.0
-        expected, fine, coarse = make_saliency_edge(
-            image, (0.12, 0.16, 0.20), 0.5, 1.0,
-            (0.7, 1.0, 1.6), importance, 0.5,
+        expected, importance, fine, coarse = make_adaptive_saliency_edge(
+            image, (0.12, 0.16, 0.20), 0.5, 1.0, (0.7, 1.0, 1.6), 0.5,
         )
 
         torch.testing.assert_close(edge[0, 0], torch.from_numpy(expected), atol=1e-7, rtol=0)
@@ -99,6 +101,73 @@ class ConditionedFusionTests(unittest.TestCase):
         self.assertTrue(torch.all((edge >= 0) & (edge <= 1)))
         torch.testing.assert_close(model(thermal)[:, 2:3], torch.zeros_like(thermal))
         self.assertGreater(float(abs(fine - coarse).max()), 0)
+        self.assertGreaterEqual(float(importance.min()), 0.18)
+
+    def test_former_position_c2c_is_reproducible(self):
+        thermal = self.thermal_step()
+        model = ConditionedGenerator(
+            nn.Identity(), condition_mode="soft_saliency_position", fusion_mode="direct",
+        )
+        edge, reserved = model.make_condition(thermal)
+        importance = center_importance(32, 32, 0.8, 0.2, 24 / 256)
+        image = (thermal[0, 0].numpy() + 1.0) / 2.0
+        expected, _, _ = make_saliency_edge(
+            image, (0.12, 0.16, 0.20), 0.5, 1.0,
+            (0.7, 1.0, 1.6), importance, 0.5,
+        )
+        torch.testing.assert_close(edge[0, 0], torch.from_numpy(expected), atol=1e-7, rtol=0)
+        self.assertEqual(torch.count_nonzero(reserved).item(), 0)
+
+    def test_adaptive_importance_disfavors_dense_texture_vs_clear_boundary(self):
+        image = np.zeros((64, 64), dtype=np.float32)
+        yy, xx = np.indices((64, 24))
+        image[:, :24] = 0.25 + 0.5 * ((xx // 3 + yy // 3) % 2)
+        image[:, 32:] = 0.8
+        fine = np.zeros_like(image)
+        fine[:, :24] = ((xx % 3 == 0) | (yy % 3 == 0)).astype(np.float32)
+        fine[:, 31:34] = 1.0
+        coarse = np.zeros_like(image)
+        coarse[:, 31:34] = 1.0
+        importance, clutter = structure_texture_importance(image, fine, coarse)
+
+        self.assertGreater(float(importance[:, 30:34].mean()), float(importance[:, :20].mean()))
+        self.assertGreater(float(clutter[:, :20].mean()), float(clutter[:, 30:34].mean()))
+        self.assertGreaterEqual(float(importance.min()), 0.18)
+        self.assertLessEqual(float(importance.max()), 0.850001)
+
+    def test_adaptive_density_responds_continuously_near_old_cutoff(self):
+        image = np.zeros((32, 32), dtype=np.float32)
+        coarse = np.zeros_like(image)
+        lower = np.full_like(image, 0.44)
+        higher = np.full_like(image, 0.46)
+        _, old_lower = structure_texture_importance(
+            image, lower, coarse, legacy_binary_density=True,
+        )
+        _, old_higher = structure_texture_importance(
+            image, higher, coarse, legacy_binary_density=True,
+        )
+        _, new_lower = structure_texture_importance(image, lower, coarse)
+        _, new_higher = structure_texture_importance(image, higher, coarse)
+        self.assertGreater(float((new_higher - new_lower).mean()), 0)
+        self.assertLess(
+            float((new_higher - new_lower).mean()),
+            float((old_higher - old_lower).mean()),
+        )
+
+    def test_revised_c2c_retains_fine_only_edges_without_creating_blank_edges(self):
+        yy, xx = np.indices((64, 64))
+        textured = (0.2 + 0.6 * ((xx // 3 + yy // 3) % 2)).astype(np.float32)
+        edge, _, fine, _ = make_adaptive_saliency_edge(
+            textured, (0.12, 0.16, 0.20), 0.5, 1.0, (0.7, 1.0, 1.6), 0.5,
+        )
+        self.assertGreater(float(fine.max()), 0)
+        self.assertTrue(np.all(edge + 1e-6 >= 0.25 * fine))
+        blank, _, blank_fine, _ = make_adaptive_saliency_edge(
+            np.zeros((64, 64), dtype=np.float32),
+            (0.12, 0.16, 0.20), 0.5, 1.0, (0.7, 1.0, 1.6), 0.5,
+        )
+        self.assertEqual(float(blank_fine.max()), 0)
+        self.assertEqual(float(blank.max()), 0)
 
     def test_c2c_saliency_override_controls_fusion_without_using_third_channel(self):
         thermal = self.thermal_step()
