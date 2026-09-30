@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from models.conditioned_cycle_gan_model import ConditionedCycleGANModel
 from models.conditioned_generator import ConditionedGenerator
+from models.saliency_edges import center_importance, make_saliency_edge, soft_multi_at_sigma
 
 
 class ConditionedFusionTests(unittest.TestCase):
@@ -79,6 +80,61 @@ class ConditionedFusionTests(unittest.TestCase):
         actual, _ = multi.make_condition(thermal)
 
         torch.testing.assert_close(actual, expected, atol=1e-7, rtol=0)
+
+    def test_c2c_keeps_confidence_channel_zero_and_matches_fusion(self):
+        thermal = self.thermal_step()
+        model = ConditionedGenerator(
+            nn.Identity(), condition_mode="soft_saliency", fusion_mode="direct",
+        )
+        edge, reserved = model.make_condition(thermal)
+        importance = center_importance(32, 32, 0.8, 0.2, 24 / 256)
+        image = (thermal[0, 0].numpy() + 1.0) / 2.0
+        expected, fine, coarse = make_saliency_edge(
+            image, (0.12, 0.16, 0.20), 0.5, 1.0,
+            (0.7, 1.0, 1.6), importance, 0.5,
+        )
+
+        torch.testing.assert_close(edge[0, 0], torch.from_numpy(expected), atol=1e-7, rtol=0)
+        self.assertEqual(torch.count_nonzero(reserved).item(), 0)
+        self.assertTrue(torch.all((edge >= 0) & (edge <= 1)))
+        torch.testing.assert_close(model(thermal)[:, 2:3], torch.zeros_like(thermal))
+        self.assertGreater(float(abs(fine - coarse).max()), 0)
+
+    def test_c2c_saliency_override_controls_fusion_without_using_third_channel(self):
+        thermal = self.thermal_step()
+        model = ConditionedGenerator(
+            nn.Identity(), condition_mode="soft_saliency", fusion_mode="direct",
+        )
+        fine_input = torch.ones_like(thermal)
+        coarse_input = torch.zeros_like(thermal)
+        fine_edge, fine_reserved = model.make_condition(thermal, fine_input)
+        coarse_edge, coarse_reserved = model.make_condition(thermal, coarse_input)
+        self.assertGreater((fine_edge - coarse_edge).abs().max().item(), 0)
+        self.assertEqual(torch.count_nonzero(fine_reserved).item(), 0)
+        self.assertEqual(torch.count_nonzero(coarse_reserved).item(), 0)
+        with self.assertRaisesRegex(ValueError, "shape"):
+            model.make_condition(thermal, torch.zeros((1, 1, 16, 16)))
+        with self.assertRaisesRegex(ValueError, r"\[0, 1\]"):
+            model.make_condition(thermal, torch.full_like(thermal, 2))
+
+    def test_c2c_middle_candidate_matches_existing_c2b(self):
+        thermal = self.thermal_step()
+        baseline = ConditionedGenerator(
+            nn.Identity(), condition_mode="soft_multi", fusion_mode="direct",
+        ).make_condition(thermal)[0][0, 0]
+        image = (thermal[0, 0].numpy() + 1.0) / 2.0
+        middle = soft_multi_at_sigma(image, 1.0, (0.12, 0.16, 0.20), 0.5, 1.0)
+        torch.testing.assert_close(torch.from_numpy(middle), baseline, atol=1e-7, rtol=0)
+
+    def test_c2c_edge_channel_reaches_trainable_first_convolution(self):
+        backbone = nn.Conv2d(3, 1, kernel_size=1, bias=False)
+        model = ConditionedGenerator(
+            backbone, condition_mode="soft_saliency", fusion_mode="direct",
+        )
+        model(self.thermal_step()).sum().backward()
+
+        self.assertGreater(backbone.weight.grad[:, 1].abs().sum().item(), 0)
+        self.assertEqual(backbone.weight.grad[:, 2].abs().sum().item(), 0)
 
     def test_soft_modes_handle_empty_edges_and_validate_configuration(self):
         flat = torch.zeros_like(self.thermal_step())

@@ -22,15 +22,25 @@ def parse_soft_high_thresholds(value: str) -> tuple[float, ...]:
     return thresholds
 
 
+def parse_saliency_sigmas(value: str) -> tuple[float, float, float]:
+    try:
+        sigmas = tuple(float(part.strip()) for part in value.split(","))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Expected three comma-separated smoothing scales") from error
+    if len(sigmas) != 3 or any(sigma <= 0 for sigma in sigmas) or tuple(sorted(sigmas)) != sigmas:
+        raise argparse.ArgumentTypeError("Provide three positive, increasing smoothing scales")
+    return sigmas
+
+
 class ConditionedCycleGANModel(CycleGANModel):
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
         parser = CycleGANModel.modify_commandline_options(parser, is_train)
         parser.add_argument(
             "--condition_mode",
-            choices=("zero", "canny", "soft_single", "soft_multi"),
+            choices=("zero", "canny", "soft_single", "soft_multi", "soft_saliency"),
             default="zero",
-            help="zero=C0-cap, canny=C1, soft_single=C2a, soft_multi=C2b.",
+            help="zero=C0-cap, canny=C1, soft_single=C2a, soft_multi=C2b, soft_saliency=C2c position-guided prototype.",
         )
         parser.add_argument("--edge_sigma", type=float, default=1.0)
         parser.add_argument("--edge_low_threshold", type=float, default=0.08)
@@ -40,6 +50,16 @@ class ConditionedCycleGANModel(CycleGANModel):
         parser.add_argument("--soft_high_thresholds", type=parse_soft_high_thresholds,
                             default=(0.12, 0.16, 0.20),
                             help="Increasing high thresholds for C2b, separated by commas; equal weights.")
+        parser.add_argument("--saliency_sigmas", type=parse_saliency_sigmas, default=(0.7, 1.0, 1.6),
+                            help="C2c fine, middle, and coarse Canny scales.")
+        parser.add_argument("--saliency_inner_weight", type=float, default=0.8,
+                            help="C2c fine-candidate weight inside the middle third.")
+        parser.add_argument("--saliency_outer_weight", type=float, default=0.2,
+                            help="C2c fine-candidate weight outside the middle third.")
+        parser.add_argument("--saliency_transition_fraction", type=float, default=24.0 / 256.0,
+                            help="C2c transition width as a fraction of image height.")
+        parser.add_argument("--saliency_background_gain", type=float, default=0.5,
+                            help="C2c gain for coarse edges outside important regions.")
         parser.add_argument(
             "--fusion_mode",
             choices=("adapter", "direct"),
@@ -56,8 +76,8 @@ class ConditionedCycleGANModel(CycleGANModel):
 
         super().__init__(opt)
         fusion_mode = getattr(opt, "fusion_mode", "adapter")
-        if opt.condition_mode in ("soft_single", "soft_multi") and fusion_mode != "direct":
-            raise ValueError("C2a/C2b require --fusion_mode direct to match the direct-fusion C1 control")
+        if opt.condition_mode in ("soft_single", "soft_multi", "soft_saliency") and fusion_mode != "direct":
+            raise ValueError("C2a/C2b/C2c require --fusion_mode direct to match the direct-fusion C1 control")
         backbone = self.netG_A
         if fusion_mode == "direct":
             backbone = networks.define_G(
@@ -73,6 +93,11 @@ class ConditionedCycleGANModel(CycleGANModel):
             edge_soft_width=getattr(opt, "edge_soft_width", 1.0),
             soft_high_thresholds=getattr(opt, "soft_high_thresholds", (0.12, 0.16, 0.20)),
             fusion_mode=fusion_mode,
+            saliency_sigmas=getattr(opt, "saliency_sigmas", (0.7, 1.0, 1.6)),
+            saliency_inner_weight=getattr(opt, "saliency_inner_weight", 0.8),
+            saliency_outer_weight=getattr(opt, "saliency_outer_weight", 0.2),
+            saliency_transition_fraction=getattr(opt, "saliency_transition_fraction", 24.0 / 256.0),
+            saliency_background_gain=getattr(opt, "saliency_background_gain", 0.5),
         )
 
         if self.isTrain:

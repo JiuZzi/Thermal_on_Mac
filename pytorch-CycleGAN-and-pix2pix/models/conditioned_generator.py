@@ -12,8 +12,9 @@ class ConditionedGenerator(nn.Module):
 
     Zero is the C0-cap control; Canny is the C1 hard-edge condition.
     Soft-single spreads the same Canny edges over a fixed pixel width.
-    Soft-multi averages maps from fixed Canny high thresholds. The reserved
-    third channel stays zero in all four modes. Direct fusion keeps all three
+    Soft-multi averages maps from fixed Canny high thresholds. Soft-saliency
+    uses a spatial importance prior to blend fine and coarse candidates.
+    The reserved third channel stays zero in all modes. Direct fusion keeps all three
     channels for the generator's first convolution.
     """
 
@@ -27,9 +28,14 @@ class ConditionedGenerator(nn.Module):
         edge_soft_width: float = 1.0,
         soft_high_thresholds: tuple[float, ...] = (0.12, 0.16, 0.20),
         fusion_mode: str = "adapter",
+        saliency_sigmas: tuple[float, float, float] = (0.7, 1.0, 1.6),
+        saliency_inner_weight: float = 0.8,
+        saliency_outer_weight: float = 0.2,
+        saliency_transition_fraction: float = 24.0 / 256.0,
+        saliency_background_gain: float = 0.5,
     ):
         super().__init__()
-        if condition_mode not in ("zero", "canny", "soft_single", "soft_multi"):
+        if condition_mode not in ("zero", "canny", "soft_single", "soft_multi", "soft_saliency"):
             raise ValueError(f"Unsupported condition mode: {condition_mode}")
         if edge_sigma <= 0 or not (0 <= edge_low_threshold < edge_high_threshold <= 1):
             raise ValueError("Canny requires sigma > 0 and 0 <= low < high <= 1")
@@ -43,6 +49,18 @@ class ConditionedGenerator(nn.Module):
             raise ValueError("Soft multi thresholds must include the C1 high threshold")
         if fusion_mode not in ("adapter", "direct"):
             raise ValueError(f"Unsupported fusion mode: {fusion_mode}")
+        if condition_mode == "soft_saliency" and fusion_mode != "direct":
+            raise ValueError("C2c requires direct fusion")
+        if len(saliency_sigmas) != 3 or any(sigma <= 0 for sigma in saliency_sigmas):
+            raise ValueError("Saliency sigmas must contain three positive values")
+        if tuple(sorted(saliency_sigmas)) != tuple(saliency_sigmas):
+            raise ValueError("Saliency sigmas must be increasing")
+        if not (0 <= saliency_outer_weight <= saliency_inner_weight <= 1):
+            raise ValueError("Saliency weights must satisfy 0 <= outer <= inner <= 1")
+        if not (0 < saliency_transition_fraction < 1 / 3):
+            raise ValueError("Saliency transition fraction must be in (0, 1/3)")
+        if not (0 < saliency_background_gain <= 1):
+            raise ValueError("Saliency background gain must be in (0, 1]")
         self.condition_mode = condition_mode
         self.fusion_mode = fusion_mode
         self.edge_sigma = edge_sigma
@@ -50,6 +68,11 @@ class ConditionedGenerator(nn.Module):
         self.edge_high_threshold = edge_high_threshold
         self.edge_soft_width = edge_soft_width
         self.soft_high_thresholds = soft_high_thresholds
+        self.saliency_sigmas = tuple(saliency_sigmas)
+        self.saliency_inner_weight = saliency_inner_weight
+        self.saliency_outer_weight = saliency_outer_weight
+        self.saliency_transition_fraction = saliency_transition_fraction
+        self.saliency_background_gain = saliency_background_gain
         self.adapter = nn.Conv2d(3, 1, kernel_size=3, padding=1) if fusion_mode == "adapter" else None
         self.backbone = backbone
 
@@ -62,10 +85,14 @@ class ConditionedGenerator(nn.Module):
             self.adapter.bias.zero_()
             self.adapter.weight[0, 0, 1, 1] = 1.0
 
-    def make_condition(self, tir: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def make_condition(
+        self, tir: torch.Tensor, saliency_override: Optional[torch.Tensor] = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if saliency_override is not None and self.condition_mode != "soft_saliency":
+            raise ValueError("Saliency override requires soft_saliency mode")
         if self.condition_mode == "zero":
             return torch.zeros_like(tir), torch.zeros_like(tir)
-        if self.condition_mode in ("canny", "soft_single", "soft_multi"):
+        if self.condition_mode in ("canny", "soft_single", "soft_multi", "soft_saliency"):
             try:
                 from skimage.feature import canny
             except ImportError as error:
@@ -102,7 +129,7 @@ class ConditionedGenerator(nn.Module):
                 edge_maps = np.stack([hard_edge(image, self.edge_high_threshold) for image in gray])
             elif self.condition_mode == "soft_single":
                 edge_maps = np.stack([soft_edge(hard_edge(image, self.edge_high_threshold)) for image in gray])
-            else:
+            elif self.condition_mode == "soft_multi":
                 edge_maps = np.stack([
                     np.mean(
                         [soft_edge(hard_edge(image, high)) for high in self.soft_high_thresholds],
@@ -111,15 +138,42 @@ class ConditionedGenerator(nn.Module):
                     )
                     for image in gray
                 ])
+            else:
+                from .saliency_edges import center_importance, make_saliency_edge
+
+                if saliency_override is not None:
+                    if saliency_override.shape != tir.shape:
+                        raise ValueError("Saliency override must have shape [N, 1, H, W] matching TIR")
+                    saliency_maps = saliency_override.detach().float().cpu().numpy()[:, 0]
+                else:
+                    prior = center_importance(
+                        gray.shape[1], gray.shape[2],
+                        self.saliency_inner_weight, self.saliency_outer_weight,
+                        self.saliency_transition_fraction,
+                    )
+                    saliency_maps = np.broadcast_to(prior, gray.shape)
+                edge_maps = np.stack([
+                    make_saliency_edge(
+                        image, self.soft_high_thresholds, low_ratio,
+                        self.edge_soft_width, self.saliency_sigmas, importance,
+                        self.saliency_background_gain,
+                    )[0]
+                    for image, importance in zip(gray, saliency_maps)
+                ])
             edge = torch.from_numpy(edge_maps[:, None]).to(device=tir.device, dtype=tir.dtype)
             return edge, torch.zeros_like(edge)
         raise ValueError(f"Unsupported condition mode: {self.condition_mode}")
 
-    def forward(self, tir: torch.Tensor, edge_override: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, tir: torch.Tensor, edge_override: Optional[torch.Tensor] = None,
+        saliency_override: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         if tir.ndim != 4 or tir.shape[1] != 1:
             raise ValueError(f"Expected one-channel TIR tensor [N, 1, H, W], got {tuple(tir.shape)}")
+        if edge_override is not None and saliency_override is not None:
+            raise ValueError("Pass either edge override or saliency override, not both")
         if edge_override is None:
-            edge, trusted_edge = self.make_condition(tir)
+            edge, trusted_edge = self.make_condition(tir, saliency_override=saliency_override)
         else:
             if edge_override.shape != tir.shape:
                 raise ValueError("Edge override must have the same [N, 1, H, W] shape as the edge map")
