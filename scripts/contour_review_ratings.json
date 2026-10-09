@@ -1,0 +1,93 @@
+{
+  "pack_id": "dbeccb7b19ade3e57487",
+  "ratings": {
+    "01_O01": {
+      "visibility": "weak",
+      "candidate": "0",
+      "clutter": "some",
+      "notes": "A/C：人体主要轮廓附近有响应，但软边扩散较宽，躯干内部覆盖明显；B：边界较集中，腿底部存在轮廓缺失",
+      "A": "1",
+      "B": "1",
+      "C": "0"
+    },
+    "02_O03": {
+      "visibility": "uncertain",
+      "candidate": "1",
+      "A": "2",
+      "B": "1",
+      "C": "2",
+      "clutter": "many"
+    },
+    "02_O10": {
+      "visibility": "weak",
+      "candidate": "1",
+      "A": "1",
+      "B": "1",
+      "C": "1",
+      "clutter": "many"
+    },
+    "02_O14": {
+      "visibility": "uncertain",
+      "candidate": "2",
+      "A": "u",
+      "B": "2",
+      "C": "u",
+      "clutter": "some"
+    },
+    "03_O02": {
+      "visibility": "uncertain",
+      "candidate": "0",
+      "A": "1",
+      "B": "0",
+      "C": "1",
+      "clutter": "many"
+    },
+    "03_O04": {
+      "visibility": "clear",
+      "candidate": "1",
+      "A": "1",
+      "B": "1",
+      "C": "1",
+      "clutter": "some"
+    },
+    "04_O03": {
+      "visibility": "uncertain",
+      "candidate": "2",
+      "A": "2",
+      "B": "1",
+      "C": "2",
+      "clutter": "many"
+    },
+    "04_O08": {
+      "visibility": "clear",
+      "candidate": "1",
+      "A": "0",
+      "B": "0",
+      "C": "0"
+    },
+    "04_O20": {
+      "visibility": "absent",
+      "candidate": "u",
+      "A": "u",
+      "B": "u",
+      "C": "u",
+      "clutter": "u"
+    },
+    "05_O01": {
+      "visibility": "clear",
+      "candidate": "1",
+      "A": "0",
+      "B": "0",
+      "C": "0",
+      "clutter": "some"
+    },
+    "05_O15": {
+      "visibility": "uncertain",
+      "candidate": "u",
+      "A": "u",
+      "B": "u",
+      "C": "u",
+      "clutter": "many"
+    }
+  }
+}
