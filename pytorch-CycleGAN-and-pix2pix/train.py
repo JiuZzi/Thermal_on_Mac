@@ -32,6 +32,8 @@ from util.util import init_ddp, cleanup_ddp
 
 if __name__ == "__main__":
     opt = TrainOptions().parse()  # get training options
+    if opt.stop_after_epoch is not None and not (opt.epoch_count <= opt.stop_after_epoch <= opt.n_epochs + opt.n_epochs_decay):
+        raise ValueError('stop_after_epoch must be within the configured epoch range')
     if opt.seed is not None:
         random.seed(opt.seed)
         np.random.seed(opt.seed)
@@ -88,11 +90,15 @@ if __name__ == "__main__":
 
         model.update_learning_rate()  # update learning rates at the end of every epoch
 
-        if epoch % opt.save_epoch_freq == 0:  # cache our model every <save_epoch_freq> epochs
+        stopping = opt.stop_after_epoch is not None and epoch == opt.stop_after_epoch
+        if epoch % opt.save_epoch_freq == 0 or stopping:  # also preserve a complete checkpoint before early stopping
             print(f"saving the model at the end of epoch {epoch}, iters {total_iters}")
             model.save_networks("latest")
             model.save_networks(epoch)
 
         print(f"End of epoch {epoch} / {opt.n_epochs + opt.n_epochs_decay} \t Time Taken: {time.time() - epoch_start_time:.0f} sec")
+        if stopping:
+            print(f"Stopped after complete epoch {epoch}; original {opt.n_epochs}+{opt.n_epochs_decay} schedule preserved.")
+            break
 
     cleanup_ddp()
