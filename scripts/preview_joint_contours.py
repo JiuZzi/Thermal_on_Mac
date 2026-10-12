@@ -32,9 +32,11 @@ def load_generator(checkpoint, device):
     source_keys = ("edge_sigma", "edge_low_threshold", "edge_high_threshold", "edge_soft_width",
                    "soft_high_thresholds", "saliency_sigmas", "saliency_inner_weight",
                    "saliency_outer_weight", "saliency_transition_fraction", "saliency_background_gain")
+    source_options = {key: cfg[key] for key in source_keys}
+    source_options["saliency_variant"] = cfg.get("saliency_variant", "structure_texture")
     generator = JointContourGenerator(
         backbone, cfg["condition_mode"], cfg["contour_width"], cfg["contour_embedding_dim"],
-        cfg["contour_epsilon"], cfg["contour_residual_limit"], **{key: cfg[key] for key in source_keys})
+        cfg["contour_epsilon"], cfg["contour_residual_limit"], **source_options)
     signature = list(hashlib.sha256(json.dumps(cfg, sort_keys=True).encode()).digest())
     generator.register_buffer("joint_signature", torch.tensor(signature, dtype=torch.uint8))
     generator.register_buffer("joint_updates", torch.zeros((), dtype=torch.int64))
@@ -52,8 +54,9 @@ def check_pair(metadata):
     for key in ("training_data_sha256", "initial_parameters_sha256", "training_config", "scope", "updates"):
         if a[key] != b[key]:
             raise ValueError(f"Unmatched comparison: {key}")
-    for key, value in a["joint_config"].items():
-        if key != "joint_variant" and value != b["joint_config"][key]:
+    configs = [{"saliency_variant": "structure_texture", **item["joint_config"]} for item in metadata]
+    for key in configs[0].keys() | configs[1].keys():
+        if key != "joint_variant" and configs[0].get(key) != configs[1].get(key):
             raise ValueError(f"Unmatched joint configuration: {key}")
 
 

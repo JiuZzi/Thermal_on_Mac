@@ -135,7 +135,7 @@ def make_adaptive_saliency_edge(
     """Return soft edge, importance, fine, coarse for two C2c candidates."""
     if variant not in (
         "structure_texture", "edge_preserving", "structure_texture_legacy",
-        "structure_texture_density_only",
+        "structure_texture_density_only", "region_recall",
     ):
         raise ValueError(f"Unknown adaptive edge variant: {variant}")
     if not (0 < background_gain <= 1):
@@ -159,16 +159,82 @@ def make_adaptive_saliency_edge(
         candidate_image, fine, coarse,
         legacy_binary_density=(variant == "structure_texture_legacy"),
     )
+    if variant == "region_recall":
+        importance, _ = region_recall_importance(
+            candidate_image, fine, coarse, importance, background_gain=background_gain,
+        )
     # Preserve a coarse structural route everywhere. Importance only decides
     # how much fine detail to add; it never sets all edges to zero.
     result = importance * fine + (1.0 - importance) * background_gain * coarse
     result *= 1.0 - 0.4 * clutter
-    if variant in ("structure_texture", "edge_preserving"):
+    if variant in ("structure_texture", "edge_preserving", "region_recall"):
         # A fine-only edge previously fell to 0.18 * (1 - 0.4) = 0.108 of
         # its candidate strength. Keep at least 25% without inventing edges.
         result = np.maximum(result, 0.25 * fine)
     return (np.clip(result, 0.0, 1.0).astype(np.float32), importance,
             fine.astype(np.float32), coarse.astype(np.float32))
+
+
+def region_recall_importance(
+    image: np.ndarray,
+    fine_edge: np.ndarray,
+    coarse_edge: np.ndarray,
+    base_importance: np.ndarray,
+    *,
+    background_gain: float = 0.5,
+) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """Opt-in R-only rescue of existing detail; NOT semantics or confidence.
+
+    Local relative gradients and cross-scale region contrast support a bounded,
+    additive importance correction. No new candidate, threshold, clutter rule,
+    fusion coefficient or fine-edge floor is introduced. The candidate-advantage
+    gate only raises R where doing so cannot reduce the coarse structural route.
+    Original defaults remain in structure_texture_importance.
+    """
+    from scipy.ndimage import gaussian_filter, maximum_filter, sobel
+
+    values = tuple(np.asarray(value, dtype=np.float32)
+                   for value in (image, fine_edge, coarse_edge, base_importance))
+    if values[0].ndim != 2 or not values[0].size or any(value.shape != values[0].shape for value in values):
+        raise ValueError("Region recall needs nonempty, matching 2D maps")
+    if any(not np.isfinite(value).all() or np.any((value < 0) | (value > 1)) for value in values):
+        raise ValueError("Region recall maps must contain finite values in [0, 1]")
+    if not 0 < background_gain <= 1:
+        raise ValueError("Background gain must be in (0, 1]")
+    image, fine_edge, coarse_edge, base_importance = values
+
+    # Absolute floors limit normalization of near-flat sensor noise. There is
+    # deliberately no directional-coherence requirement on small curved edges.
+    gradient_views = []
+    for sigma in (0.7, 1.0):
+        smooth = gaussian_filter(image, sigma)
+        magnitude = np.hypot(sobel(smooth, axis=1) / 8.0, sobel(smooth, axis=0) / 8.0)
+        local_magnitude = gaussian_filter(magnitude, 3.0)
+        gradient_views.append(np.clip(magnitude / (local_magnitude + 0.015), 0.0, 1.0))
+    relative_detail = np.sqrt(gradient_views[0] * gradient_views[1])
+
+    inner = gaussian_filter(image, 1.0)
+    region_views = []
+    for sigma in (2.0, 4.0, 8.0):
+        mean = gaussian_filter(image, sigma)
+        variance = np.maximum(gaussian_filter(image * image, sigma) - mean * mean, 0.0)
+        region_views.append(np.clip(np.abs(inner - mean) / (np.sqrt(variance) + 0.02), 0.0, 1.0))
+    # Support must occur at two adjacent region scales; a 5x5 neighborhood
+    # extends it to nearby contact boundaries without drawing a connecting line.
+    region_support = np.maximum(np.minimum(region_views[0], region_views[1]),
+                                np.minimum(region_views[1], region_views[2]))
+    neighborhood_support = maximum_filter(region_support, size=5)
+    rescue_support = gaussian_filter(np.sqrt(relative_detail * neighborhood_support), 0.7)
+    advantage = np.clip((fine_edge - background_gain * coarse_edge) / 0.3, 0.0, 1.0)
+    headroom = np.maximum(0.85 - base_importance, 0.0)
+    importance = base_importance + 0.65 * headroom * rescue_support * advantage
+    return importance.astype(np.float32), dict(
+        relative_detail=relative_detail.astype(np.float32),
+        region_support=region_support.astype(np.float32),
+        neighborhood_support=neighborhood_support.astype(np.float32),
+        rescue_support=rescue_support.astype(np.float32),
+        candidate_advantage=advantage.astype(np.float32),
+    )
 
 
 def long_line_importance(image: np.ndarray) -> tuple[np.ndarray, int]:

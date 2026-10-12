@@ -37,10 +37,15 @@ class ConditionedGenerator(nn.Module):
         saliency_background_gain: float = 0.5,
         detector_checkpoint: Optional[str] = None,
         detector_score_threshold: float = 0.20,
+        saliency_variant: str = "structure_texture",
     ):
         super().__init__()
         if condition_mode not in ("zero", "canny", "soft_single", "soft_multi", "soft_saliency", "soft_saliency_position", "soft_object_line"):
             raise ValueError(f"Unsupported condition mode: {condition_mode}")
+        if saliency_variant not in ("structure_texture", "region_recall"):
+            raise ValueError(f"Unsupported saliency variant: {saliency_variant}")
+        if saliency_variant != "structure_texture" and condition_mode != "soft_saliency":
+            raise ValueError("region_recall requires condition_mode soft_saliency")
         if edge_sigma <= 0 or not (0 <= edge_low_threshold < edge_high_threshold <= 1):
             raise ValueError("Canny requires sigma > 0 and 0 <= low < high <= 1")
         if edge_soft_width <= 0:
@@ -81,6 +86,7 @@ class ConditionedGenerator(nn.Module):
         self.saliency_outer_weight = saliency_outer_weight
         self.saliency_transition_fraction = saliency_transition_fraction
         self.saliency_background_gain = saliency_background_gain
+        self.saliency_variant = saliency_variant
         self.detector_checkpoint = detector_checkpoint
         self.detector_score_threshold = detector_score_threshold
         if condition_mode == "soft_object_line":
@@ -105,6 +111,8 @@ class ConditionedGenerator(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if saliency_override is not None and self.condition_mode not in ("soft_saliency", "soft_saliency_position"):
             raise ValueError("Saliency override requires a soft_saliency mode")
+        if saliency_override is not None and self.saliency_variant != "structure_texture":
+            raise ValueError("region_recall cannot be combined with an external saliency override")
         if self.condition_mode == "zero":
             return torch.zeros_like(tir), torch.zeros_like(tir)
         if self.condition_mode in ("canny", "soft_single", "soft_multi", "soft_saliency", "soft_saliency_position", "soft_object_line"):
@@ -175,6 +183,7 @@ class ConditionedGenerator(nn.Module):
                             image, self.soft_high_thresholds, low_ratio,
                             self.edge_soft_width, self.saliency_sigmas,
                             self.saliency_background_gain,
+                            variant=self.saliency_variant,
                         )[0]
                         for image in gray
                     ])

@@ -96,6 +96,7 @@ class JointContourCycleGANModel(ConditionedCycleGANModel):
             saliency_inner_weight=opt.saliency_inner_weight, saliency_outer_weight=opt.saliency_outer_weight,
             saliency_transition_fraction=opt.saliency_transition_fraction,
             saliency_background_gain=opt.saliency_background_gain,
+            saliency_variant=getattr(opt, "saliency_variant", "structure_texture"),
         )
         config_keys = (
             "joint_variant", "condition_mode", "fusion_mode", "netG", "ngf", "norm",
@@ -110,6 +111,10 @@ class JointContourCycleGANModel(ConditionedCycleGANModel):
             "contour_intensity_jitter", "contour_sampling_seed",
         )
         self.joint_config = {key: getattr(opt, key) for key in config_keys}
+        # Preserve signatures of pre-existing default JR checkpoints. Explicit
+        # new priors must have a different signature to prevent accidental reuse.
+        if getattr(opt, "saliency_variant", "structure_texture") != "structure_texture":
+            self.joint_config["saliency_variant"] = opt.saliency_variant
         signature = hashlib.sha256(json.dumps(self.joint_config, sort_keys=True).encode()).digest()
         self.expected_signature = list(signature)
         self.netG_A.register_buffer("joint_signature", torch.tensor(self.expected_signature, dtype=torch.uint8))
@@ -218,9 +223,11 @@ class JointContourCycleGANModel(ConditionedCycleGANModel):
             raise RuntimeError("Non-finite joint generator loss")
         self.loss_G.backward()
         head_grad = self.netG_A.refiner.residual_head.weight.grad
-        self.loss_contour_head_grad = float(head_grad.norm()) if head_grad is not None else 0.0
+        # Keep diagnostics on-device; get_current_losses converts them to Python
+        # numbers only when requested by the logging loop. They never enter loss_G.
+        self.loss_contour_head_grad = head_grad.detach().norm() if head_grad is not None else 0.0
         first_conv = next(module for module in self.netG_A.backbone.modules() if isinstance(module, torch.nn.Conv2d))
-        self.loss_contour_channel_grad = float(first_conv.weight.grad[:, 1].norm()) if first_conv.weight.grad is not None else 0.0
+        self.loss_contour_channel_grad = first_conv.weight.grad[:, 1].detach().norm() if first_conv.weight.grad is not None else 0.0
 
     def optimize_parameters(self):
         self._at_epoch_end = False

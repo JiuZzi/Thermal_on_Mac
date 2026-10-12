@@ -60,6 +60,9 @@ class ConditionedCycleGANModel(CycleGANModel):
                             help="Former position C2c transition width as a fraction of image height.")
         parser.add_argument("--saliency_background_gain", type=float, default=0.5,
                             help="C2c gain for coarse edges outside important regions.")
+        parser.add_argument("--saliency_variant", choices=("structure_texture", "region_recall"),
+                            default="structure_texture",
+                            help="Keep original C2c by default; region_recall is an opt-in R-only weak-detail rescue.")
         parser.add_argument("--detector_checkpoint", type=str, default=None,
                             help="Frozen FLIR detector checkpoint required for soft_object_line.")
         parser.add_argument("--detector_score_threshold", type=float, default=0.20,
@@ -102,6 +105,7 @@ class ConditionedCycleGANModel(CycleGANModel):
             saliency_outer_weight=getattr(opt, "saliency_outer_weight", 0.2),
             saliency_transition_fraction=getattr(opt, "saliency_transition_fraction", 24.0 / 256.0),
             saliency_background_gain=getattr(opt, "saliency_background_gain", 0.5),
+            saliency_variant=getattr(opt, "saliency_variant", "structure_texture"),
             detector_checkpoint=getattr(opt, "detector_checkpoint", None),
             detector_score_threshold=getattr(opt, "detector_score_threshold", 0.20),
         )

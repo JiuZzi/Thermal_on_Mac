@@ -185,6 +185,78 @@ class JointContourTests(unittest.TestCase):
             model.optimize_parameters()
             self.assertGreater(model.netG_A.refiner.enc1[0].weight.grad.abs().sum().item(), 0)
 
+    def test_gradient_diagnostics_stay_detached_until_logging(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for variant in ("plain", "contrastive"):
+                with self.subTest(variant=variant):
+                    model = seeded_model(test_options(Path(temporary), variant, seed=42))
+                    model.set_input(data_fixture())
+                    model.optimize_parameters()
+                    for name in ("contour_head_grad", "contour_channel_grad"):
+                        diagnostic = getattr(model, "loss_" + name)
+                        self.assertIsInstance(diagnostic, torch.Tensor)
+                        self.assertEqual(diagnostic.ndim, 0)
+                        self.assertFalse(diagnostic.requires_grad)
+                        self.assertIsNone(diagnostic.grad_fn)
+                        self.assertEqual(diagnostic.device, model.netG_A.refiner.residual_head.weight.device)
+                    head = model.netG_A.refiner.residual_head.weight
+                    first_conv = next(m for m in model.netG_A.backbone.modules()
+                                      if isinstance(m, torch.nn.Conv2d))
+                    expected = {
+                        "contour_head_grad": float(head.grad.norm()),
+                        "contour_channel_grad": float(first_conv.weight.grad[:, 1].norm()),
+                    }
+                    logged = model.get_current_losses()
+                    for name, value in expected.items():
+                        self.assertIsInstance(logged[name], float)
+                        self.assertEqual(logged[name], value)
+
+    def test_deferred_diagnostics_match_eager_training_updates(self):
+        """The former float reads must not affect losses, gradients, RNG or weights."""
+        with tempfile.TemporaryDirectory() as temporary:
+            for variant in ("plain", "contrastive"):
+                with self.subTest(variant=variant):
+                    folder = Path(temporary) / variant
+                    deferred = seeded_model(test_options(folder, variant, seed=42))
+                    eager = seeded_model(test_options(folder, variant, seed=42))
+                    original_backward = eager.backward_G
+
+                    def eager_backward():
+                        original_backward()
+                        eager.loss_contour_head_grad = float(eager.loss_contour_head_grad)
+                        eager.loss_contour_channel_grad = float(eager.loss_contour_channel_grad)
+
+                    eager.backward_G = eager_backward
+                    for _ in range(2):
+                        before = (random.getstate(), np.random.get_state(), torch.get_rng_state())
+                        deferred.set_input(data_fixture())
+                        deferred.optimize_parameters()
+                        after = (random.getstate(), np.random.get_state(), torch.get_rng_state())
+                        random.setstate(before[0])
+                        np.random.set_state(before[1])
+                        torch.set_rng_state(before[2])
+                        eager.set_input(data_fixture())
+                        eager.optimize_parameters()
+                        self.assertEqual(random.getstate(), after[0])
+                        actual_numpy = np.random.get_state()
+                        self.assertEqual(actual_numpy[0], after[1][0])
+                        np.testing.assert_array_equal(actual_numpy[1], after[1][1])
+                        self.assertEqual(actual_numpy[2:], after[1][2:])
+                        torch.testing.assert_close(torch.get_rng_state(), after[2], rtol=0, atol=0)
+                        torch.testing.assert_close(deferred.loss_G, eager.loss_G, rtol=0, atol=0)
+                        self.assertEqual(deferred.get_current_losses(), eager.get_current_losses())
+                        for name in deferred.model_names:
+                            actual_net = getattr(deferred, "net" + name)
+                            expected_net = getattr(eager, "net" + name)
+                            for key, value in actual_net.state_dict().items():
+                                torch.testing.assert_close(value, expected_net.state_dict()[key], rtol=0, atol=0)
+                            for actual, expected in zip(actual_net.parameters(), expected_net.parameters()):
+                                if actual.grad is None or expected.grad is None:
+                                    self.assertIsNone(actual.grad)
+                                    self.assertIsNone(expected.grad)
+                                else:
+                                    torch.testing.assert_close(actual.grad, expected.grad, rtol=0, atol=0)
+
     def test_checkpoint_roundtrip_mismatch_and_epoch_resume(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)
