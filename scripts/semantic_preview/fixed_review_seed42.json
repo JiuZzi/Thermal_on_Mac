@@ -1,0 +1,2329 @@
+{
+  "selection": {
+    "seed": 42,
+    "regular_sampling": "video-balanced random round-robin",
+    "challenge_sampling": "same sampling within annotated small-object pool",
+    "small_object_proxy": "full processed bbox width 2..30, height 2..20, not clipped",
+    "samples": [
+      {
+        "filename": "video-iS9cAu6Ms3CXQtY92-frame-002539-S9kY65x3XvWBiGuAM.jpg",
+        "video_id": "iS9cAu6Ms3CXQtY92",
+        "group": "regular"
+      },
+      {
+        "filename": "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg",
+        "video_id": "DJYDQTZH7GLCqw3Tx",
+        "group": "regular"
+      },
+      {
+        "filename": "video-ydbh3ikFGJFieXswZ-frame-007200-Whg73q7irtgNGwjZa.jpg",
+        "video_id": "ydbh3ikFGJFieXswZ",
+        "group": "regular"
+      },
+      {
+        "filename": "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg",
+        "video_id": "dpPsuZToLaq9myAK8",
+        "group": "regular"
+      },
+      {
+        "filename": "video-muKWZNM2FxQoStMQh-frame-002264-Zf4v9yvHQaL67ff2Z.jpg",
+        "video_id": "muKWZNM2FxQoStMQh",
+        "group": "regular"
+      },
+      {
+        "filename": "video-GzdKTLbkG5F7gAunM-frame-005723-9cxuMMhsyxHk5yjhB.jpg",
+        "video_id": "GzdKTLbkG5F7gAunM",
+        "group": "regular"
+      },
+      {
+        "filename": "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg",
+        "video_id": "vbhpsNpMoX2Qbhw2A",
+        "group": "regular"
+      },
+      {
+        "filename": "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg",
+        "video_id": "5An82wT7iBmfZSwx7",
+        "group": "regular"
+      },
+      {
+        "filename": "video-5RBAcNR5F6fB3i6P5-frame-002219-rwpXqvjKzpAoF8rgm.jpg",
+        "video_id": "5RBAcNR5F6fB3i6P5",
+        "group": "regular"
+      },
+      {
+        "filename": "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg",
+        "video_id": "JFiGa9oAAN2queuLt",
+        "group": "regular"
+      },
+      {
+        "filename": "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg",
+        "video_id": "ZicHYAPRYGdu82nAa",
+        "group": "regular"
+      },
+      {
+        "filename": "video-JnRLAYvPLms37xEzD-frame-003300-domaBy9RWf36MQ4va.jpg",
+        "video_id": "JnRLAYvPLms37xEzD",
+        "group": "regular"
+      },
+      {
+        "filename": "video-BvDJ7TewksQCjCtyN-frame-003241-YAGYuCesWWeaT7BBd.jpg",
+        "video_id": "BvDJ7TewksQCjCtyN",
+        "group": "regular"
+      },
+      {
+        "filename": "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg",
+        "video_id": "AkvAvb4X72cnTbbCw",
+        "group": "regular"
+      },
+      {
+        "filename": "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg",
+        "video_id": "7yaY3LisuPdNyfZH9",
+        "group": "regular"
+      },
+      {
+        "filename": "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg",
+        "video_id": "4dy5Hhcg93BTyG9KZ",
+        "group": "regular"
+      },
+      {
+        "filename": "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg",
+        "video_id": "WFkuHrJEHigf6HCWZ",
+        "group": "regular"
+      },
+      {
+        "filename": "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg",
+        "video_id": "r68Yr9RPWEp5fW2ZF",
+        "group": "regular"
+      },
+      {
+        "filename": "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg",
+        "video_id": "67ZzTP4GCNj69eNPs",
+        "group": "regular"
+      },
+      {
+        "filename": "video-9BBhGg3MKeaChnLjP-frame-000910-J7RKteKJGqH87ueAB.jpg",
+        "video_id": "9BBhGg3MKeaChnLjP",
+        "group": "regular"
+      },
+      {
+        "filename": "video-5YffDt2oYT6CDzYHk-frame-001247-vQtzHNdkr2Kn4c6dH.jpg",
+        "video_id": "5YffDt2oYT6CDzYHk",
+        "group": "regular"
+      },
+      {
+        "filename": "video-AEZAaF8epmvQv5Nfj-frame-011036-BETAQ6GykT5MokYWF.jpg",
+        "video_id": "AEZAaF8epmvQv5Nfj",
+        "group": "regular"
+      },
+      {
+        "filename": "video-WXTMrJkrK8BMoMkxk-frame-000150-PxrhZ22bLxqAdAGR6.jpg",
+        "video_id": "WXTMrJkrK8BMoMkxk",
+        "group": "regular"
+      },
+      {
+        "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000774-qA3dwxzzfkSrPrJEy.jpg",
+        "video_id": "Gj7ejTPCZZnD5YwPv",
+        "group": "regular"
+      },
+      {
+        "filename": "video-JnRLAYvPLms37xEzD-frame-002700-mQ7KHMmWkRRhHkmrd.jpg",
+        "video_id": "JnRLAYvPLms37xEzD",
+        "group": "regular"
+      },
+      {
+        "filename": "video-ydbh3ikFGJFieXswZ-frame-002700-tLKn7YasmCAAzACTY.jpg",
+        "video_id": "ydbh3ikFGJFieXswZ",
+        "group": "regular"
+      },
+      {
+        "filename": "video-muKWZNM2FxQoStMQh-frame-002279-2Ga7xYTRK7eBCwwD2.jpg",
+        "video_id": "muKWZNM2FxQoStMQh",
+        "group": "regular"
+      },
+      {
+        "filename": "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg",
+        "video_id": "4dy5Hhcg93BTyG9KZ",
+        "group": "regular"
+      },
+      {
+        "filename": "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg",
+        "video_id": "5YffDt2oYT6CDzYHk",
+        "group": "regular"
+      },
+      {
+        "filename": "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg",
+        "video_id": "5An82wT7iBmfZSwx7",
+        "group": "regular"
+      },
+      {
+        "filename": "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg",
+        "video_id": "ZicHYAPRYGdu82nAa",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg",
+        "video_id": "5An82wT7iBmfZSwx7",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-ydbh3ikFGJFieXswZ-frame-002250-NsycJidyo7DsAJxcj.jpg",
+        "video_id": "ydbh3ikFGJFieXswZ",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg",
+        "video_id": "AEZAaF8epmvQv5Nfj",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000000-jAC2x6Hd7Fc3RThuT.jpg",
+        "video_id": "Gj7ejTPCZZnD5YwPv",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg",
+        "video_id": "muKWZNM2FxQoStMQh",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg",
+        "video_id": "AkvAvb4X72cnTbbCw",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-5YffDt2oYT6CDzYHk-frame-003899-gz6Jz95rSAtQknDaR.jpg",
+        "video_id": "5YffDt2oYT6CDzYHk",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-iS9cAu6Ms3CXQtY92-frame-002649-CMPQa2PKPjoS5XCbk.jpg",
+        "video_id": "iS9cAu6Ms3CXQtY92",
+        "group": "small_object_challenge"
+      },
+      {
+        "filename": "video-5RBAcNR5F6fB3i6P5-frame-009869-km99D5Z93LnX8xjvB.jpg",
+        "video_id": "5RBAcNR5F6fB3i6P5",
+        "group": "small_object_challenge"
+      }
+    ]
+  },
+  "geometry": "full",
+  "source_hashes": {
+    "video-iS9cAu6Ms3CXQtY92-frame-002539-S9kY65x3XvWBiGuAM.jpg": "d9f6f58326cc774be9b326d2b0ef9ab1ada9b2da9d01499030cc2a06996c39d7",
+    "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg": "ad2e7fcdcc8492e4d44a64170eab951cadd487376cd67bbda4868c1e9a97be16",
+    "video-ydbh3ikFGJFieXswZ-frame-007200-Whg73q7irtgNGwjZa.jpg": "ce072849aea1d869f3d666067428d12b0a9201309f624f58586cd43c2d1c76e8",
+    "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg": "645b45d93963e0fc09360f0d5fbf7e8f44d33f568f3e366817ff81b7edd0374f",
+    "video-muKWZNM2FxQoStMQh-frame-002264-Zf4v9yvHQaL67ff2Z.jpg": "3f07bd067d68074779c0457af83f230a22c8e7ef97dd8289bdb29b11fa440ae7",
+    "video-GzdKTLbkG5F7gAunM-frame-005723-9cxuMMhsyxHk5yjhB.jpg": "1d7289bc3f7bedcd5823d1128a09cee1114e47144c55243d0f4259b94a89f41a",
+    "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg": "3170ab7610cf3e9d62b22c8a15ef340fb2f6163d5bdececcb357b0fda4d7c664",
+    "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg": "94fe7fba607b1c65bf34bb805bbfa10514cf5a1b1b6068c96e09790424f7b5f6",
+    "video-5RBAcNR5F6fB3i6P5-frame-002219-rwpXqvjKzpAoF8rgm.jpg": "4b2f08c6b3fd8fb9fc87aa3a8c20af4b667900209b4830290ba548c135f3c291",
+    "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg": "402e1d355bce13ccdfa94babf43c506053682c0482f0f58f7092804605e95ad0",
+    "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg": "ae457aefd31e9cf41df95aa854afcbd85d065760169780c9ad55d262c2ab4632",
+    "video-JnRLAYvPLms37xEzD-frame-003300-domaBy9RWf36MQ4va.jpg": "9a31aa19c4caf33061e58d4355090ecc1c10f3d73437e4eb9d2cd709267c7437",
+    "video-BvDJ7TewksQCjCtyN-frame-003241-YAGYuCesWWeaT7BBd.jpg": "0e272a15e326348b1cd1f52a33b3ce4de8d8138a3395676e2e795cd3f04ba17d",
+    "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg": "a842b5089bd2343894d380c3d1ad14b381c35251bf17ec63ced3d3f82a53f560",
+    "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg": "16ba796bca3b91572cc05043fb4f24ea4146685272c54c1671afb54e8c2f988e",
+    "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg": "c104797683058c0b7c0aa7c9e8fc6fa0d0178ddca9a3fd6fd2f78a83589a13c0",
+    "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg": "59c6c4a4b14c1aaa9b00c688be7318414482bfe3a53f6fef2b926ddf02602792",
+    "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg": "b4fb98fa290840755efbae10a7efd987d553c396052968eab1134c3e2740db7f",
+    "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg": "1f3a9743a054c6eab78ae0d689fd5f12c02d3ffe6e5c31749e9b9f0c4c790454",
+    "video-9BBhGg3MKeaChnLjP-frame-000910-J7RKteKJGqH87ueAB.jpg": "fb04a425367c21c6946fb5de9ac58d79df072f28c07840e11cee66e327d5aa5f",
+    "video-5YffDt2oYT6CDzYHk-frame-001247-vQtzHNdkr2Kn4c6dH.jpg": "4be554b4b454d42dfa9243916a4b165a5facc3e25f76683d44d231c67c2f1581",
+    "video-AEZAaF8epmvQv5Nfj-frame-011036-BETAQ6GykT5MokYWF.jpg": "4530a4591dd60a41848171eda63221e0f76aaeeeb5c9896c54cc6ea7031538aa",
+    "video-WXTMrJkrK8BMoMkxk-frame-000150-PxrhZ22bLxqAdAGR6.jpg": "ca9b7849dc52acfc245584446276f70e7baad35c32724de1951577283d2f6093",
+    "video-Gj7ejTPCZZnD5YwPv-frame-000774-qA3dwxzzfkSrPrJEy.jpg": "dae0d776afd6d6efa55c1905c8dea5401947a8a344c3d30835457163c97600a0",
+    "video-JnRLAYvPLms37xEzD-frame-002700-mQ7KHMmWkRRhHkmrd.jpg": "224934e13b321fee0b3cf96ca3f4084b9a6c671fe10b56f858d26e506d40bfd2",
+    "video-ydbh3ikFGJFieXswZ-frame-002700-tLKn7YasmCAAzACTY.jpg": "6f2d6fadcb4e487521131302ebbcc10bd7642efadf452a747e9f5810a6063d25",
+    "video-muKWZNM2FxQoStMQh-frame-002279-2Ga7xYTRK7eBCwwD2.jpg": "2248a98f2b2e4b9d067e3ff8d0ff400905652ddc4dc6bc002a22edbf2644f4c9",
+    "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg": "f6672781b3974891f755a800231425c5fe9d8aa72b2f4337362e0ce9cab28de1",
+    "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg": "25912ef90c9b44188d9ab354396a670d9c1ca5196156d9e402e9f77240289e7f",
+    "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg": "2295c5953acb406be8448e77a0136873edeb72213a66797fdccb0eda7a586f12",
+    "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg": "97d118a0a8cf07462a54e9544eb32c419c8e2f6b6fc16ae6b24484528260c908",
+    "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg": "0a2d66129e581a3b027abdb448029bc150790190c4afb96c1262f40343b4f065",
+    "video-ydbh3ikFGJFieXswZ-frame-002250-NsycJidyo7DsAJxcj.jpg": "434dd7e3b5f80471f1d68d93b9646fc89f36354cb2c0ba591b83a59e25c1bc6c",
+    "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg": "7d2f08895ce854d5fd007181e9ca72acbed9423243417811b2e3bcd49139a777",
+    "video-Gj7ejTPCZZnD5YwPv-frame-000000-jAC2x6Hd7Fc3RThuT.jpg": "b95236705d6c93ddbef58f89a5e335448458a800f1a755c7da7f40d3911b4b2a",
+    "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg": "0ee437905e4e6eb80dff8ca59f68e3735eac97b9651bc5c0ca78c8c4e79207dd",
+    "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg": "beb90e3e4b2a1216184d3b58f080a4f270f2c88242087f67c5f85a645dc98a10",
+    "video-5YffDt2oYT6CDzYHk-frame-003899-gz6Jz95rSAtQknDaR.jpg": "ebce5f49645d832c05a9b5e67ce41fdfdacc618ca829e76da2cb382fca8db8e2",
+    "video-iS9cAu6Ms3CXQtY92-frame-002649-CMPQa2PKPjoS5XCbk.jpg": "fe01eee2b72e187de5c8725d76677570466abef154b1b2acb1ee63b481ea0516",
+    "video-5RBAcNR5F6fB3i6P5-frame-009869-km99D5Z93LnX8xjvB.jpg": "6942fd28e1df82c601a9be43b73454f29dbdcc788d11f0cee93dad8ea62ac00c"
+  },
+  "scope": "trainB development audit; object boxes are reference locations, never contour labels",
+  "pack_id": "dbeccb7b19ade3e57487",
+  "items": [
+    {
+      "id": "01_O01",
+      "filename": "video-iS9cAu6Ms3CXQtY92-frame-002539-S9kY65x3XvWBiGuAM.jpg",
+      "video_id": "iS9cAu6Ms3CXQtY92",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 34718,
+      "box": [
+        239.375,
+        108.84375,
+        247.96875,
+        131.5
+      ],
+      "crop": [
+        233,
+        102,
+        254,
+        138
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 1,
+      "priority": true
+    },
+    {
+      "id": "02_O03",
+      "filename": "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg",
+      "video_id": "DJYDQTZH7GLCqw3Tx",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 126577,
+      "box": [
+        96.40625,
+        114.3125,
+        100.3125,
+        129.15625
+      ],
+      "crop": [
+        90,
+        108,
+        107,
+        136
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 2,
+      "priority": true
+    },
+    {
+      "id": "02_O10",
+      "filename": "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg",
+      "video_id": "DJYDQTZH7GLCqw3Tx",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 126585,
+      "box": [
+        201.09375,
+        119.78125,
+        231.5625,
+        145.5625
+      ],
+      "crop": [
+        193,
+        111,
+        240,
+        154
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 2,
+      "priority": true
+    },
+    {
+      "id": "02_O14",
+      "filename": "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg",
+      "video_id": "DJYDQTZH7GLCqw3Tx",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 126589,
+      "box": [
+        150.3125,
+        113.53125,
+        156.5625,
+        118.21875
+      ],
+      "crop": [
+        144,
+        107,
+        163,
+        125
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 2,
+      "priority": true
+    },
+    {
+      "id": "03_O02",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-007200-Whg73q7irtgNGwjZa.jpg",
+      "video_id": "ydbh3ikFGJFieXswZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 66494,
+      "box": [
+        202.65625,
+        140.875,
+        208.125,
+        144.78125
+      ],
+      "crop": [
+        196,
+        134,
+        215,
+        151
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 3,
+      "priority": true
+    },
+    {
+      "id": "03_O04",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-007200-Whg73q7irtgNGwjZa.jpg",
+      "video_id": "ydbh3ikFGJFieXswZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 66496,
+      "box": [
+        102.65625,
+        139.3125,
+        136.25,
+        164.3125
+      ],
+      "crop": [
+        94,
+        131,
+        145,
+        173
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 3,
+      "priority": true
+    },
+    {
+      "id": "04_O03",
+      "filename": "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg",
+      "video_id": "dpPsuZToLaq9myAK8",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 30567,
+      "box": [
+        116.71875,
+        125.25,
+        125.3125,
+        147.125
+      ],
+      "crop": [
+        110,
+        119,
+        132,
+        154
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 4,
+      "priority": true
+    },
+    {
+      "id": "04_O08",
+      "filename": "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg",
+      "video_id": "dpPsuZToLaq9myAK8",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 30575,
+      "box": [
+        298.75,
+        102.59375,
+        360,
+        205.71875
+      ],
+      "crop": [
+        272,
+        76,
+        360,
+        232
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 4,
+      "priority": true
+    },
+    {
+      "id": "04_O20",
+      "filename": "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg",
+      "video_id": "dpPsuZToLaq9myAK8",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 30587,
+      "box": [
+        40.9375,
+        129.15625,
+        47.1875,
+        138.53125
+      ],
+      "crop": [
+        34,
+        123,
+        54,
+        145
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 4,
+      "priority": true
+    },
+    {
+      "id": "05_O01",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002264-Zf4v9yvHQaL67ff2Z.jpg",
+      "video_id": "muKWZNM2FxQoStMQh",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 41824,
+      "box": [
+        290.9375,
+        125.25,
+        344.0625,
+        163.53125
+      ],
+      "crop": [
+        277,
+        112,
+        358,
+        177
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 5,
+      "priority": true
+    },
+    {
+      "id": "05_O15",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002264-Zf4v9yvHQaL67ff2Z.jpg",
+      "video_id": "muKWZNM2FxQoStMQh",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 41838,
+      "box": [
+        239.375,
+        132.28125,
+        242.5,
+        136.96875
+      ],
+      "crop": [
+        233,
+        126,
+        249,
+        143
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 5,
+      "priority": true
+    },
+    {
+      "id": "06_O01",
+      "filename": "video-GzdKTLbkG5F7gAunM-frame-005723-9cxuMMhsyxHk5yjhB.jpg",
+      "video_id": "GzdKTLbkG5F7gAunM",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 1074,
+      "box": [
+        201.875,
+        123.6875,
+        222.96875,
+        136.96875
+      ],
+      "crop": [
+        195,
+        117,
+        229,
+        143
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 6,
+      "priority": true
+    },
+    {
+      "id": "07_O01",
+      "filename": "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg",
+      "video_id": "vbhpsNpMoX2Qbhw2A",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 63920,
+      "box": [
+        185.46875,
+        115.875,
+        187.8125,
+        121.34375
+      ],
+      "crop": [
+        179,
+        109,
+        194,
+        128
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 7,
+      "priority": true
+    },
+    {
+      "id": "07_O06",
+      "filename": "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg",
+      "video_id": "vbhpsNpMoX2Qbhw2A",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 63925,
+      "box": [
+        347.1875,
+        133.84375,
+        360,
+        163.53125
+      ],
+      "crop": [
+        340,
+        126,
+        360,
+        171
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 7,
+      "priority": true
+    },
+    {
+      "id": "07_O07",
+      "filename": "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg",
+      "video_id": "vbhpsNpMoX2Qbhw2A",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 63926,
+      "box": [
+        255.0,
+        116.65625,
+        258.125,
+        119.78125
+      ],
+      "crop": [
+        249,
+        110,
+        265,
+        126
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 7,
+      "priority": true
+    },
+    {
+      "id": "08_O09",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 72024,
+      "box": [
+        38.59375,
+        122.125,
+        44.0625,
+        130.71875
+      ],
+      "crop": [
+        32,
+        116,
+        51,
+        137
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 8,
+      "priority": true
+    },
+    {
+      "id": "08_O13",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 72029,
+      "box": [
+        163.59375,
+        127.59375,
+        172.96875,
+        136.1875
+      ],
+      "crop": [
+        157,
+        121,
+        179,
+        143
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 8,
+      "priority": true
+    },
+    {
+      "id": "08_O14",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 72030,
+      "box": [
+        141.71875,
+        123.6875,
+        165.9375,
+        145.5625
+      ],
+      "crop": [
+        135,
+        117,
+        172,
+        152
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 8,
+      "priority": true
+    },
+    {
+      "id": "09_O01",
+      "filename": "video-5RBAcNR5F6fB3i6P5-frame-002219-rwpXqvjKzpAoF8rgm.jpg",
+      "video_id": "5RBAcNR5F6fB3i6P5",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 76022,
+      "box": [
+        213.59375,
+        131.5,
+        239.375,
+        154.15625
+      ],
+      "crop": [
+        207,
+        125,
+        246,
+        161
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 9,
+      "priority": true
+    },
+    {
+      "id": "09_O05",
+      "filename": "video-5RBAcNR5F6fB3i6P5-frame-002219-rwpXqvjKzpAoF8rgm.jpg",
+      "video_id": "5RBAcNR5F6fB3i6P5",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 76026,
+      "box": [
+        159.6875,
+        123.6875,
+        168.28125,
+        130.71875
+      ],
+      "crop": [
+        153,
+        117,
+        175,
+        137
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 9,
+      "priority": true
+    },
+    {
+      "id": "10_O01",
+      "filename": "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg",
+      "video_id": "JFiGa9oAAN2queuLt",
+      "group": "regular",
+      "category": "bus",
+      "annotation_id": 8737,
+      "box": [
+        280.0,
+        81.5,
+        360,
+        111.96875
+      ],
+      "crop": [
+        260,
+        61,
+        360,
+        132
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 10,
+      "priority": true
+    },
+    {
+      "id": "10_O05",
+      "filename": "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg",
+      "video_id": "JFiGa9oAAN2queuLt",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 8743,
+      "box": [
+        110.46875,
+        126.03125,
+        113.59375,
+        134.625
+      ],
+      "crop": [
+        104,
+        120,
+        120,
+        141
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 10,
+      "priority": true
+    },
+    {
+      "id": "10_O24",
+      "filename": "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg",
+      "video_id": "JFiGa9oAAN2queuLt",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 8762,
+      "box": [
+        155.0,
+        124.46875,
+        163.59375,
+        133.84375
+      ],
+      "crop": [
+        149,
+        118,
+        170,
+        140
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 10,
+      "priority": true
+    },
+    {
+      "id": "11_O01",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg",
+      "video_id": "ZicHYAPRYGdu82nAa",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 23761,
+      "box": [
+        336.25,
+        91.65625,
+        357.34375,
+        176.8125
+      ],
+      "crop": [
+        315,
+        70,
+        360,
+        198
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 11,
+      "priority": true
+    },
+    {
+      "id": "11_O11",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg",
+      "video_id": "ZicHYAPRYGdu82nAa",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 23771,
+      "box": [
+        206.5625,
+        118.21875,
+        209.6875,
+        126.03125
+      ],
+      "crop": [
+        200,
+        112,
+        216,
+        133
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 11,
+      "priority": true
+    },
+    {
+      "id": "11_O16",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg",
+      "video_id": "ZicHYAPRYGdu82nAa",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 23776,
+      "box": [
+        119.84375,
+        122.90625,
+        125.3125,
+        129.9375
+      ],
+      "crop": [
+        113,
+        116,
+        132,
+        136
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 11,
+      "priority": true
+    },
+    {
+      "id": "12_O01",
+      "filename": "video-JnRLAYvPLms37xEzD-frame-003300-domaBy9RWf36MQ4va.jpg",
+      "video_id": "JnRLAYvPLms37xEzD",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 13735,
+      "box": [
+        0.3125,
+        119.78125,
+        23.75,
+        131.5
+      ],
+      "crop": [
+        0,
+        113,
+        30,
+        138
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 12,
+      "priority": true
+    },
+    {
+      "id": "13_O03",
+      "filename": "video-BvDJ7TewksQCjCtyN-frame-003241-YAGYuCesWWeaT7BBd.jpg",
+      "video_id": "BvDJ7TewksQCjCtyN",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 107607,
+      "box": [
+        183.125,
+        131.5,
+        208.125,
+        146.34375
+      ],
+      "crop": [
+        177,
+        125,
+        215,
+        153
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 13,
+      "priority": true
+    },
+    {
+      "id": "13_O08",
+      "filename": "video-BvDJ7TewksQCjCtyN-frame-003241-YAGYuCesWWeaT7BBd.jpg",
+      "video_id": "BvDJ7TewksQCjCtyN",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 107612,
+      "box": [
+        0.0,
+        121.34375,
+        70.625,
+        179.15625
+      ],
+      "crop": [
+        0,
+        103,
+        89,
+        198
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 13,
+      "priority": true
+    },
+    {
+      "id": "14_O01",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg",
+      "video_id": "AkvAvb4X72cnTbbCw",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 101777,
+      "box": [
+        255.0,
+        100.25,
+        279.21875,
+        151.8125
+      ],
+      "crop": [
+        242,
+        87,
+        293,
+        165
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 14,
+      "priority": true
+    },
+    {
+      "id": "14_O04",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg",
+      "video_id": "AkvAvb4X72cnTbbCw",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 101780,
+      "box": [
+        177.65625,
+        104.9375,
+        190.15625,
+        141.65625
+      ],
+      "crop": [
+        168,
+        95,
+        200,
+        151
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 14,
+      "priority": true
+    },
+    {
+      "id": "14_O08",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg",
+      "video_id": "AkvAvb4X72cnTbbCw",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 101787,
+      "box": [
+        137.8125,
+        115.875,
+        162.8125,
+        135.40625
+      ],
+      "crop": [
+        131,
+        109,
+        169,
+        142
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 14,
+      "priority": true
+    },
+    {
+      "id": "15_O02",
+      "filename": "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg",
+      "video_id": "7yaY3LisuPdNyfZH9",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 85668,
+      "box": [
+        229.21875,
+        111.1875,
+        233.90625,
+        125.25
+      ],
+      "crop": [
+        223,
+        105,
+        240,
+        132
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 15,
+      "priority": true
+    },
+    {
+      "id": "15_O03",
+      "filename": "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg",
+      "video_id": "7yaY3LisuPdNyfZH9",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 85669,
+      "box": [
+        0.0,
+        77.59375,
+        37.8125,
+        216.65625
+      ],
+      "crop": [
+        0,
+        42,
+        73,
+        252
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 15,
+      "priority": true
+    },
+    {
+      "id": "15_O05",
+      "filename": "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg",
+      "video_id": "7yaY3LisuPdNyfZH9",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 85671,
+      "box": [
+        139.375,
+        114.3125,
+        149.53125,
+        126.03125
+      ],
+      "crop": [
+        133,
+        108,
+        156,
+        133
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 15,
+      "priority": true
+    },
+    {
+      "id": "16_O01",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg",
+      "video_id": "4dy5Hhcg93BTyG9KZ",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 69753,
+      "box": [
+        240.9375,
+        110.40625,
+        247.96875,
+        127.59375
+      ],
+      "crop": [
+        234,
+        104,
+        254,
+        134
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 16,
+      "priority": true
+    },
+    {
+      "id": "16_O04",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg",
+      "video_id": "4dy5Hhcg93BTyG9KZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 69756,
+      "box": [
+        0.0,
+        108.84375,
+        81.5625,
+        174.46875
+      ],
+      "crop": [
+        0,
+        88,
+        102,
+        195
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 16,
+      "priority": true
+    },
+    {
+      "id": "16_O05",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg",
+      "video_id": "4dy5Hhcg93BTyG9KZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 69757,
+      "box": [
+        144.84375,
+        114.3125,
+        152.65625,
+        120.5625
+      ],
+      "crop": [
+        138,
+        108,
+        159,
+        127
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 16,
+      "priority": true
+    },
+    {
+      "id": "17_O08",
+      "filename": "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg",
+      "video_id": "WFkuHrJEHigf6HCWZ",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 162579,
+      "box": [
+        281.5625,
+        103.375,
+        285.46875,
+        106.5
+      ],
+      "crop": [
+        275,
+        97,
+        292,
+        113
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 17,
+      "priority": true
+    },
+    {
+      "id": "17_O12",
+      "filename": "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg",
+      "video_id": "WFkuHrJEHigf6HCWZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 162583,
+      "box": [
+        267.5,
+        106.5,
+        310.46875,
+        134.625
+      ],
+      "crop": [
+        256,
+        95,
+        322,
+        146
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 17,
+      "priority": true
+    },
+    {
+      "id": "17_O16",
+      "filename": "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg",
+      "video_id": "WFkuHrJEHigf6HCWZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 162587,
+      "box": [
+        175.3125,
+        97.125,
+        180.78125,
+        101.03125
+      ],
+      "crop": [
+        169,
+        91,
+        187,
+        108
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 17,
+      "priority": true
+    },
+    {
+      "id": "18_O09",
+      "filename": "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg",
+      "video_id": "r68Yr9RPWEp5fW2ZF",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 51738,
+      "box": [
+        193.28125,
+        143.21875,
+        197.1875,
+        148.6875
+      ],
+      "crop": [
+        187,
+        137,
+        204,
+        155
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 18,
+      "priority": true
+    },
+    {
+      "id": "18_O13",
+      "filename": "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg",
+      "video_id": "r68Yr9RPWEp5fW2ZF",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 51744,
+      "box": [
+        184.6875,
+        140.875,
+        191.71875,
+        147.125
+      ],
+      "crop": [
+        178,
+        134,
+        198,
+        154
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 18,
+      "priority": true
+    },
+    {
+      "id": "18_O14",
+      "filename": "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg",
+      "video_id": "r68Yr9RPWEp5fW2ZF",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 51745,
+      "box": [
+        155.0,
+        140.09375,
+        189.375,
+        169.0
+      ],
+      "crop": [
+        146,
+        131,
+        199,
+        178
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 18,
+      "priority": true
+    },
+    {
+      "id": "19_O02",
+      "filename": "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg",
+      "video_id": "67ZzTP4GCNj69eNPs",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 82018,
+      "box": [
+        62.8125,
+        133.0625,
+        68.28125,
+        148.6875
+      ],
+      "crop": [
+        56,
+        127,
+        75,
+        155
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 19,
+      "priority": true
+    },
+    {
+      "id": "19_O03",
+      "filename": "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg",
+      "video_id": "67ZzTP4GCNj69eNPs",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 82020,
+      "box": [
+        95.625,
+        84.625,
+        237.8125,
+        211.96875
+      ],
+      "crop": [
+        59,
+        48,
+        274,
+        248
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 19,
+      "priority": true
+    },
+    {
+      "id": "19_O04",
+      "filename": "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg",
+      "video_id": "67ZzTP4GCNj69eNPs",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 82021,
+      "box": [
+        79.21875,
+        130.71875,
+        97.96875,
+        149.46875
+      ],
+      "crop": [
+        73,
+        124,
+        104,
+        156
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 19,
+      "priority": true
+    },
+    {
+      "id": "21_O01",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001247-vQtzHNdkr2Kn4c6dH.jpg",
+      "video_id": "5YffDt2oYT6CDzYHk",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 77134,
+      "box": [
+        101.875,
+        133.84375,
+        143.28125,
+        158.0625
+      ],
+      "crop": [
+        91,
+        123,
+        154,
+        169
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 21,
+      "priority": true
+    },
+    {
+      "id": "21_O07",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001247-vQtzHNdkr2Kn4c6dH.jpg",
+      "video_id": "5YffDt2oYT6CDzYHk",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 77140,
+      "box": [
+        236.25,
+        114.3125,
+        238.59375,
+        116.65625
+      ],
+      "crop": [
+        230,
+        108,
+        245,
+        123
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 21,
+      "priority": true
+    },
+    {
+      "id": "22_O18",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-011036-BETAQ6GykT5MokYWF.jpg",
+      "video_id": "AEZAaF8epmvQv5Nfj",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 94796,
+      "box": [
+        312.8125,
+        114.3125,
+        360,
+        262.75
+      ],
+      "crop": [
+        275,
+        77,
+        360,
+        288
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 22,
+      "priority": true
+    },
+    {
+      "id": "22_O23",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-011036-BETAQ6GykT5MokYWF.jpg",
+      "video_id": "AEZAaF8epmvQv5Nfj",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 94801,
+      "box": [
+        177.65625,
+        126.03125,
+        181.5625,
+        128.375
+      ],
+      "crop": [
+        171,
+        120,
+        188,
+        135
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 22,
+      "priority": true
+    },
+    {
+      "id": "24_O04",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000774-qA3dwxzzfkSrPrJEy.jpg",
+      "video_id": "Gj7ejTPCZZnD5YwPv",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 138074,
+      "box": [
+        224.53125,
+        117.4375,
+        244.84375,
+        126.8125
+      ],
+      "crop": [
+        218,
+        111,
+        251,
+        133
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 24,
+      "priority": true
+    },
+    {
+      "id": "24_O06",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000774-qA3dwxzzfkSrPrJEy.jpg",
+      "video_id": "Gj7ejTPCZZnD5YwPv",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 138076,
+      "box": [
+        161.25,
+        113.53125,
+        164.375,
+        115.875
+      ],
+      "crop": [
+        155,
+        107,
+        171,
+        122
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 24,
+      "priority": true
+    },
+    {
+      "id": "25_O01",
+      "filename": "video-JnRLAYvPLms37xEzD-frame-002700-mQ7KHMmWkRRhHkmrd.jpg",
+      "video_id": "JnRLAYvPLms37xEzD",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 13726,
+      "box": [
+        24.53125,
+        117.4375,
+        66.71875,
+        144.78125
+      ],
+      "crop": [
+        13,
+        106,
+        78,
+        156
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 25,
+      "priority": true
+    },
+    {
+      "id": "25_O02",
+      "filename": "video-JnRLAYvPLms37xEzD-frame-002700-mQ7KHMmWkRRhHkmrd.jpg",
+      "video_id": "JnRLAYvPLms37xEzD",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 13727,
+      "box": [
+        157.34375,
+        111.96875,
+        161.25,
+        115.09375
+      ],
+      "crop": [
+        151,
+        105,
+        168,
+        122
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 25,
+      "priority": true
+    },
+    {
+      "id": "26_O02",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002700-tLKn7YasmCAAzACTY.jpg",
+      "video_id": "ydbh3ikFGJFieXswZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 66429,
+      "box": [
+        55.0,
+        131.5,
+        76.09375,
+        142.4375
+      ],
+      "crop": [
+        49,
+        125,
+        83,
+        149
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 26,
+      "priority": true
+    },
+    {
+      "id": "26_O08",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002700-tLKn7YasmCAAzACTY.jpg",
+      "video_id": "ydbh3ikFGJFieXswZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 66435,
+      "box": [
+        230.0,
+        138.53125,
+        234.6875,
+        141.65625
+      ],
+      "crop": [
+        224,
+        132,
+        241,
+        148
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 26,
+      "priority": true
+    },
+    {
+      "id": "27_O01",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002279-2Ga7xYTRK7eBCwwD2.jpg",
+      "video_id": "muKWZNM2FxQoStMQh",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 41840,
+      "box": [
+        262.8125,
+        123.6875,
+        343.28125,
+        179.9375
+      ],
+      "crop": [
+        242,
+        103,
+        360,
+        200
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 27,
+      "priority": true
+    },
+    {
+      "id": "27_O11",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002279-2Ga7xYTRK7eBCwwD2.jpg",
+      "video_id": "muKWZNM2FxQoStMQh",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 41850,
+      "box": [
+        183.90625,
+        131.5,
+        188.59375,
+        136.96875
+      ],
+      "crop": [
+        177,
+        125,
+        195,
+        143
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 27,
+      "priority": true
+    },
+    {
+      "id": "28_O01",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg",
+      "video_id": "4dy5Hhcg93BTyG9KZ",
+      "group": "regular",
+      "category": "bus",
+      "annotation_id": 69365,
+      "box": [
+        199.53125,
+        90.875,
+        228.4375,
+        124.46875
+      ],
+      "crop": [
+        191,
+        82,
+        237,
+        133
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 28,
+      "priority": true
+    },
+    {
+      "id": "28_O02",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg",
+      "video_id": "4dy5Hhcg93BTyG9KZ",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 69369,
+      "box": [
+        230.78125,
+        106.5,
+        234.6875,
+        120.5625
+      ],
+      "crop": [
+        224,
+        100,
+        241,
+        127
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 28,
+      "priority": true
+    },
+    {
+      "id": "28_O07",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg",
+      "video_id": "4dy5Hhcg93BTyG9KZ",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 69375,
+      "box": [
+        185.46875,
+        108.84375,
+        194.84375,
+        115.875
+      ],
+      "crop": [
+        179,
+        102,
+        201,
+        122
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 28,
+      "priority": true
+    },
+    {
+      "id": "29_O02",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg",
+      "video_id": "5YffDt2oYT6CDzYHk",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 78120,
+      "box": [
+        256.5625,
+        120.5625,
+        259.6875,
+        127.59375
+      ],
+      "crop": [
+        250,
+        114,
+        266,
+        134
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 29,
+      "priority": true
+    },
+    {
+      "id": "29_O08",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg",
+      "video_id": "5YffDt2oYT6CDzYHk",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 78128,
+      "box": [
+        216.71875,
+        122.125,
+        221.40625,
+        126.03125
+      ],
+      "crop": [
+        210,
+        116,
+        228,
+        133
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 29,
+      "priority": true
+    },
+    {
+      "id": "29_O12",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg",
+      "video_id": "5YffDt2oYT6CDzYHk",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 78132,
+      "box": [
+        301.09375,
+        136.1875,
+        320.625,
+        185.40625
+      ],
+      "crop": [
+        289,
+        124,
+        333,
+        198
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 29,
+      "priority": true
+    },
+    {
+      "id": "30_O02",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 71013,
+      "box": [
+        224.53125,
+        112.75,
+        237.8125,
+        144.78125
+      ],
+      "crop": [
+        216,
+        104,
+        246,
+        153
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 30,
+      "priority": true
+    },
+    {
+      "id": "30_O05",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "regular",
+      "category": "person",
+      "annotation_id": 71016,
+      "box": [
+        13.59375,
+        39.3125,
+        193.28125,
+        288
+      ],
+      "crop": [
+        0,
+        0,
+        256,
+        288
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 30,
+      "priority": true
+    },
+    {
+      "id": "30_O07",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "regular",
+      "category": "car",
+      "annotation_id": 71018,
+      "box": [
+        136.25,
+        126.8125,
+        142.5,
+        131.5
+      ],
+      "crop": [
+        130,
+        120,
+        149,
+        138
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 30,
+      "priority": true
+    },
+    {
+      "id": "31_O01",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg",
+      "video_id": "ZicHYAPRYGdu82nAa",
+      "group": "small_object_challenge",
+      "category": "person",
+      "annotation_id": 23880,
+      "box": [
+        170.625,
+        121.34375,
+        174.53125,
+        131.5
+      ],
+      "crop": [
+        164,
+        115,
+        181,
+        138
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 31,
+      "priority": true
+    },
+    {
+      "id": "31_O03",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg",
+      "video_id": "ZicHYAPRYGdu82nAa",
+      "group": "small_object_challenge",
+      "category": "bike",
+      "annotation_id": 23884,
+      "box": [
+        163.59375,
+        126.8125,
+        169.84375,
+        136.96875
+      ],
+      "crop": [
+        157,
+        120,
+        176,
+        143
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 31,
+      "priority": true
+    },
+    {
+      "id": "31_O10",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg",
+      "video_id": "ZicHYAPRYGdu82nAa",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 23891,
+      "box": [
+        205.0,
+        97.125,
+        319.0625,
+        186.96875
+      ],
+      "crop": [
+        176,
+        68,
+        349,
+        216
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 31,
+      "priority": true
+    },
+    {
+      "id": "32_O13",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "small_object_challenge",
+      "category": "person",
+      "annotation_id": 72374,
+      "box": [
+        47.1875,
+        119.78125,
+        51.09375,
+        132.28125
+      ],
+      "crop": [
+        41,
+        113,
+        58,
+        139
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 32,
+      "priority": true
+    },
+    {
+      "id": "32_O14",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 72376,
+      "box": [
+        69.84375,
+        118.21875,
+        91.71875,
+        140.875
+      ],
+      "crop": [
+        63,
+        112,
+        98,
+        147
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 32,
+      "priority": true
+    },
+    {
+      "id": "32_O17",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg",
+      "video_id": "5An82wT7iBmfZSwx7",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 72379,
+      "box": [
+        91.71875,
+        102.59375,
+        176.875,
+        165.875
+      ],
+      "crop": [
+        70,
+        81,
+        198,
+        187
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 32,
+      "priority": true
+    },
+    {
+      "id": "33_O01",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002250-NsycJidyo7DsAJxcj.jpg",
+      "video_id": "ydbh3ikFGJFieXswZ",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 66420,
+      "box": [
+        43.28125,
+        134.625,
+        108.125,
+        178.375
+      ],
+      "crop": [
+        27,
+        118,
+        125,
+        195
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 33,
+      "priority": true
+    },
+    {
+      "id": "33_O04",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002250-NsycJidyo7DsAJxcj.jpg",
+      "video_id": "ydbh3ikFGJFieXswZ",
+      "group": "small_object_challenge",
+      "category": "truck",
+      "annotation_id": 66423,
+      "box": [
+        148.75,
+        140.09375,
+        157.34375,
+        153.375
+      ],
+      "crop": [
+        142,
+        134,
+        164,
+        160
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 33,
+      "priority": true
+    },
+    {
+      "id": "34_O07",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg",
+      "video_id": "AEZAaF8epmvQv5Nfj",
+      "group": "small_object_challenge",
+      "category": "bike",
+      "annotation_id": 97562,
+      "box": [
+        155.0,
+        126.03125,
+        158.125,
+        132.28125
+      ],
+      "crop": [
+        149,
+        120,
+        165,
+        139
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 34,
+      "priority": true
+    },
+    {
+      "id": "34_O19",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg",
+      "video_id": "AEZAaF8epmvQv5Nfj",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 97578,
+      "box": [
+        290.9375,
+        120.5625,
+        345.625,
+        167.4375
+      ],
+      "crop": [
+        276,
+        106,
+        360,
+        182
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 34,
+      "priority": true
+    },
+    {
+      "id": "34_O29",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg",
+      "video_id": "AEZAaF8epmvQv5Nfj",
+      "group": "small_object_challenge",
+      "category": "person",
+      "annotation_id": 97588,
+      "box": [
+        155.0,
+        122.90625,
+        158.125,
+        129.9375
+      ],
+      "crop": [
+        149,
+        116,
+        165,
+        136
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 34,
+      "priority": true
+    },
+    {
+      "id": "35_O01",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000000-jAC2x6Hd7Fc3RThuT.jpg",
+      "video_id": "Gj7ejTPCZZnD5YwPv",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 137673,
+      "box": [
+        293.28125,
+        108.0625,
+        360,
+        190.09375
+      ],
+      "crop": [
+        272,
+        87,
+        360,
+        212
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 35,
+      "priority": true
+    },
+    {
+      "id": "35_O11",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000000-jAC2x6Hd7Fc3RThuT.jpg",
+      "video_id": "Gj7ejTPCZZnD5YwPv",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 137684,
+      "box": [
+        150.3125,
+        113.53125,
+        155.0,
+        116.65625
+      ],
+      "crop": [
+        144,
+        107,
+        161,
+        123
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 35,
+      "priority": true
+    },
+    {
+      "id": "36_O01",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg",
+      "video_id": "muKWZNM2FxQoStMQh",
+      "group": "small_object_challenge",
+      "category": "person",
+      "annotation_id": 41764,
+      "box": [
+        180.78125,
+        117.4375,
+        190.9375,
+        149.46875
+      ],
+      "crop": [
+        172,
+        109,
+        199,
+        158
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 36,
+      "priority": true
+    },
+    {
+      "id": "36_O08",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg",
+      "video_id": "muKWZNM2FxQoStMQh",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 41774,
+      "box": [
+        173.75,
+        129.15625,
+        178.4375,
+        138.53125
+      ],
+      "crop": [
+        167,
+        123,
+        185,
+        145
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 36,
+      "priority": true
+    },
+    {
+      "id": "36_O10",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg",
+      "video_id": "muKWZNM2FxQoStMQh",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 41776,
+      "box": [
+        30.78125,
+        123.6875,
+        68.28125,
+        148.6875
+      ],
+      "crop": [
+        21,
+        114,
+        78,
+        158
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 36,
+      "priority": true
+    },
+    {
+      "id": "37_O02",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg",
+      "video_id": "AkvAvb4X72cnTbbCw",
+      "group": "small_object_challenge",
+      "category": "person",
+      "annotation_id": 102542,
+      "box": [
+        211.25,
+        122.90625,
+        215.9375,
+        131.5
+      ],
+      "crop": [
+        205,
+        116,
+        222,
+        138
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 37,
+      "priority": true
+    },
+    {
+      "id": "37_O08",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg",
+      "video_id": "AkvAvb4X72cnTbbCw",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 102548,
+      "box": [
+        119.0625,
+        123.6875,
+        125.3125,
+        128.375
+      ],
+      "crop": [
+        113,
+        117,
+        132,
+        135
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 37,
+      "priority": true
+    },
+    {
+      "id": "37_O12",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg",
+      "video_id": "AkvAvb4X72cnTbbCw",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 102552,
+      "box": [
+        0.0,
+        104.9375,
+        56.5625,
+        208.84375
+      ],
+      "crop": [
+        0,
+        78,
+        83,
+        235
+      ],
+      "truncated_by_preprocessing": true,
+      "frame_number": 37,
+      "priority": true
+    },
+    {
+      "id": "38_O01",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-003899-gz6Jz95rSAtQknDaR.jpg",
+      "video_id": "5YffDt2oYT6CDzYHk",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 79313,
+      "box": [
+        176.09375,
+        119.78125,
+        190.15625,
+        129.9375
+      ],
+      "crop": [
+        170,
+        113,
+        197,
+        136
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 38,
+      "priority": true
+    },
+    {
+      "id": "39_O01",
+      "filename": "video-iS9cAu6Ms3CXQtY92-frame-002649-CMPQa2PKPjoS5XCbk.jpg",
+      "video_id": "iS9cAu6Ms3CXQtY92",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 34729,
+      "box": [
+        37.8125,
+        119.0,
+        55.78125,
+        131.5
+      ],
+      "crop": [
+        31,
+        113,
+        62,
+        138
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 39,
+      "priority": true
+    },
+    {
+      "id": "40_O01",
+      "filename": "video-5RBAcNR5F6fB3i6P5-frame-009869-km99D5Z93LnX8xjvB.jpg",
+      "video_id": "5RBAcNR5F6fB3i6P5",
+      "group": "small_object_challenge",
+      "category": "car",
+      "annotation_id": 76077,
+      "box": [
+        194.84375,
+        143.21875,
+        199.53125,
+        147.90625
+      ],
+      "crop": [
+        188,
+        137,
+        206,
+        154
+      ],
+      "truncated_by_preprocessing": false,
+      "frame_number": 40,
+      "priority": true
+    }
+  ],
+  "origin_review_sha256": "8b19d2d987833f0b86ebc573abf6f93fff18a7b7c3619f4a1dee32983ccad7c8",
+  "annotation_use": "Existing boxes ONLY locate fixed review crops; never supplied to semantic inference or GAN."
+}

@@ -1,0 +1,2 @@
+# Extra metadata dependency only. Use the existing torch/numpy/Pillow environment.
+omegaconf==2.3.0

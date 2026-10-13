@@ -1,0 +1,977 @@
+{
+  "format": "semantic_review_v1",
+  "pack_id": "3c01f6a53d2696ef70c3291a747cdd1e4e10d50a69f8f56d0e5b339770c04832",
+  "modes": [
+    "base",
+    "detail"
+  ],
+  "targets": [
+    {
+      "id": "01_O01",
+      "filename": "video-iS9cAu6Ms3CXQtY92-frame-002539-S9kY65x3XvWBiGuAM.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "02_O03",
+      "filename": "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "02_O10",
+      "filename": "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "02_O14",
+      "filename": "video-DJYDQTZH7GLCqw3Tx-frame-008810-zLboSzPyqEzu5GzBJ.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "03_O02",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-007200-Whg73q7irtgNGwjZa.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "03_O04",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-007200-Whg73q7irtgNGwjZa.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "04_O03",
+      "filename": "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "04_O08",
+      "filename": "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "04_O20",
+      "filename": "video-dpPsuZToLaq9myAK8-frame-005079-sCAkZ9mGgX3BGRXZf.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "05_O01",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002264-Zf4v9yvHQaL67ff2Z.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "05_O15",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002264-Zf4v9yvHQaL67ff2Z.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "06_O01",
+      "filename": "video-GzdKTLbkG5F7gAunM-frame-005723-9cxuMMhsyxHk5yjhB.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "07_O01",
+      "filename": "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "07_O06",
+      "filename": "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "07_O07",
+      "filename": "video-vbhpsNpMoX2Qbhw2A-frame-000985-GJqeJp6XjBBGNM3jt.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "08_O09",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "08_O13",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "08_O14",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005211-hCYTCKNooqpAtRBA4.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "09_O01",
+      "filename": "video-5RBAcNR5F6fB3i6P5-frame-002219-rwpXqvjKzpAoF8rgm.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "09_O05",
+      "filename": "video-5RBAcNR5F6fB3i6P5-frame-002219-rwpXqvjKzpAoF8rgm.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "10_O01",
+      "filename": "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg",
+      "category": "bus",
+      "group": "regular"
+    },
+    {
+      "id": "10_O05",
+      "filename": "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "10_O24",
+      "filename": "video-JFiGa9oAAN2queuLt-frame-004217-y8Zyg59AipuCJRXXE.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "11_O01",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "11_O11",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "11_O16",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-001897-g7HFaXZARhfSEfXFb.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "12_O01",
+      "filename": "video-JnRLAYvPLms37xEzD-frame-003300-domaBy9RWf36MQ4va.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "13_O03",
+      "filename": "video-BvDJ7TewksQCjCtyN-frame-003241-YAGYuCesWWeaT7BBd.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "13_O08",
+      "filename": "video-BvDJ7TewksQCjCtyN-frame-003241-YAGYuCesWWeaT7BBd.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "14_O01",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "14_O04",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "14_O08",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-000455-LdymWqwBxviMbg65a.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "15_O02",
+      "filename": "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "15_O03",
+      "filename": "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "15_O05",
+      "filename": "video-7yaY3LisuPdNyfZH9-frame-002816-thR2AEefK8bFE7a6T.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "16_O01",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "16_O04",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "16_O05",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-001836-jQ3SLg3rALECnw3HE.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "17_O08",
+      "filename": "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "17_O12",
+      "filename": "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "17_O16",
+      "filename": "video-WFkuHrJEHigf6HCWZ-frame-002541-2L8SLyHydYrABKmX8.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "18_O09",
+      "filename": "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "18_O13",
+      "filename": "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "18_O14",
+      "filename": "video-r68Yr9RPWEp5fW2ZF-frame-002786-C99pd8wcdjec45L7k.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "19_O02",
+      "filename": "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "19_O03",
+      "filename": "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "19_O04",
+      "filename": "video-67ZzTP4GCNj69eNPs-frame-002291-8KjaYEiuNr9R78jnh.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "21_O01",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001247-vQtzHNdkr2Kn4c6dH.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "21_O07",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001247-vQtzHNdkr2Kn4c6dH.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "22_O18",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-011036-BETAQ6GykT5MokYWF.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "22_O23",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-011036-BETAQ6GykT5MokYWF.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "24_O04",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000774-qA3dwxzzfkSrPrJEy.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "24_O06",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000774-qA3dwxzzfkSrPrJEy.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "25_O01",
+      "filename": "video-JnRLAYvPLms37xEzD-frame-002700-mQ7KHMmWkRRhHkmrd.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "25_O02",
+      "filename": "video-JnRLAYvPLms37xEzD-frame-002700-mQ7KHMmWkRRhHkmrd.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "26_O02",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002700-tLKn7YasmCAAzACTY.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "26_O08",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002700-tLKn7YasmCAAzACTY.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "27_O01",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002279-2Ga7xYTRK7eBCwwD2.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "27_O11",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002279-2Ga7xYTRK7eBCwwD2.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "28_O01",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg",
+      "category": "bus",
+      "group": "regular"
+    },
+    {
+      "id": "28_O02",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "28_O07",
+      "filename": "video-4dy5Hhcg93BTyG9KZ-frame-000533-iCRGqC2C7yLah6XT5.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "29_O02",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "29_O08",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "29_O12",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-001894-ey8EG4fN8Sk9oHL6p.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "30_O02",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "30_O05",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg",
+      "category": "person",
+      "group": "regular"
+    },
+    {
+      "id": "30_O07",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-001288-zgaNQhEJZAx9xP7HW.jpg",
+      "category": "car",
+      "group": "regular"
+    },
+    {
+      "id": "31_O01",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg",
+      "category": "person",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "31_O03",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg",
+      "category": "bike",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "31_O10",
+      "filename": "video-ZicHYAPRYGdu82nAa-frame-002002-mWzzX6y3mCWtXNktw.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "32_O13",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg",
+      "category": "person",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "32_O14",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "32_O17",
+      "filename": "video-5An82wT7iBmfZSwx7-frame-005406-jtj2E22hRCJoDJkDv.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "33_O01",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002250-NsycJidyo7DsAJxcj.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "33_O04",
+      "filename": "video-ydbh3ikFGJFieXswZ-frame-002250-NsycJidyo7DsAJxcj.jpg",
+      "category": "truck",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "34_O07",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg",
+      "category": "bike",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "34_O19",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "34_O29",
+      "filename": "video-AEZAaF8epmvQv5Nfj-frame-015251-KAtb5KQHfBbNQL7xB.jpg",
+      "category": "person",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "35_O01",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000000-jAC2x6Hd7Fc3RThuT.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "35_O11",
+      "filename": "video-Gj7ejTPCZZnD5YwPv-frame-000000-jAC2x6Hd7Fc3RThuT.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "36_O01",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg",
+      "category": "person",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "36_O08",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "36_O10",
+      "filename": "video-muKWZNM2FxQoStMQh-frame-002021-7PAZ9QmfDDanxnw8j.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "37_O02",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg",
+      "category": "person",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "37_O08",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "37_O12",
+      "filename": "video-AkvAvb4X72cnTbbCw-frame-002184-tC5x7emNfEs2oJcL6.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "38_O01",
+      "filename": "video-5YffDt2oYT6CDzYHk-frame-003899-gz6Jz95rSAtQknDaR.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "39_O01",
+      "filename": "video-iS9cAu6Ms3CXQtY92-frame-002649-CMPQa2PKPjoS5XCbk.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    },
+    {
+      "id": "40_O01",
+      "filename": "video-5RBAcNR5F6fB3i6P5-frame-009869-km99D5Z93LnX8xjvB.jpg",
+      "category": "car",
+      "group": "small_object_challenge"
+    }
+  ],
+  "results": {
+    "01_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "02_O03": {
+      "ratings": {},
+      "note": ""
+    },
+    "02_O10": {
+      "ratings": {},
+      "note": ""
+    },
+    "02_O14": {
+      "ratings": {},
+      "note": ""
+    },
+    "03_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "03_O04": {
+      "ratings": {},
+      "note": ""
+    },
+    "04_O03": {
+      "ratings": {},
+      "note": ""
+    },
+    "04_O08": {
+      "ratings": {},
+      "note": ""
+    },
+    "04_O20": {
+      "ratings": {},
+      "note": ""
+    },
+    "05_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "05_O15": {
+      "ratings": {},
+      "note": ""
+    },
+    "06_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "07_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "07_O06": {
+      "ratings": {},
+      "note": ""
+    },
+    "07_O07": {
+      "ratings": {},
+      "note": ""
+    },
+    "08_O09": {
+      "ratings": {},
+      "note": ""
+    },
+    "08_O13": {
+      "ratings": {},
+      "note": ""
+    },
+    "08_O14": {
+      "ratings": {},
+      "note": ""
+    },
+    "09_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "09_O05": {
+      "ratings": {},
+      "note": ""
+    },
+    "10_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "10_O05": {
+      "ratings": {},
+      "note": ""
+    },
+    "10_O24": {
+      "ratings": {},
+      "note": ""
+    },
+    "11_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "11_O11": {
+      "ratings": {},
+      "note": ""
+    },
+    "11_O16": {
+      "ratings": {},
+      "note": ""
+    },
+    "12_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "13_O03": {
+      "ratings": {},
+      "note": ""
+    },
+    "13_O08": {
+      "ratings": {},
+      "note": ""
+    },
+    "14_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "14_O04": {
+      "ratings": {},
+      "note": ""
+    },
+    "14_O08": {
+      "ratings": {},
+      "note": ""
+    },
+    "15_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "15_O03": {
+      "ratings": {},
+      "note": ""
+    },
+    "15_O05": {
+      "ratings": {},
+      "note": ""
+    },
+    "16_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "16_O04": {
+      "ratings": {},
+      "note": ""
+    },
+    "16_O05": {
+      "ratings": {},
+      "note": ""
+    },
+    "17_O08": {
+      "ratings": {},
+      "note": ""
+    },
+    "17_O12": {
+      "ratings": {},
+      "note": ""
+    },
+    "17_O16": {
+      "ratings": {},
+      "note": ""
+    },
+    "18_O09": {
+      "ratings": {},
+      "note": ""
+    },
+    "18_O13": {
+      "ratings": {},
+      "note": ""
+    },
+    "18_O14": {
+      "ratings": {},
+      "note": ""
+    },
+    "19_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "19_O03": {
+      "ratings": {},
+      "note": ""
+    },
+    "19_O04": {
+      "ratings": {},
+      "note": ""
+    },
+    "21_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "21_O07": {
+      "ratings": {},
+      "note": ""
+    },
+    "22_O18": {
+      "ratings": {},
+      "note": ""
+    },
+    "22_O23": {
+      "ratings": {},
+      "note": ""
+    },
+    "24_O04": {
+      "ratings": {},
+      "note": ""
+    },
+    "24_O06": {
+      "ratings": {},
+      "note": ""
+    },
+    "25_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "25_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "26_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "26_O08": {
+      "ratings": {},
+      "note": ""
+    },
+    "27_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "27_O11": {
+      "ratings": {},
+      "note": ""
+    },
+    "28_O01": {
+      "ratings": {},
+      "note": ""
+    },
+    "28_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "28_O07": {
+      "ratings": {},
+      "note": ""
+    },
+    "29_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "29_O08": {
+      "ratings": {},
+      "note": ""
+    },
+    "29_O12": {
+      "ratings": {},
+      "note": ""
+    },
+    "30_O02": {
+      "ratings": {},
+      "note": ""
+    },
+    "30_O05": {
+      "ratings": {},
+      "note": ""
+    },
+    "30_O07": {
+      "ratings": {},
+      "note": ""
+    },
+    "31_O01": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "wrong_class"
+      },
+      "note": "512中人的头被识别为了树，1024中自行车部分识别有点混乱"
+    },
+    "31_O03": {
+      "ratings": {},
+      "note": ""
+    },
+    "31_O10": {
+      "ratings": {
+        "base": "partial",
+        "detail": "recognized"
+      },
+      "note": "自行车的语义有点混乱，分成了好几个快"
+    },
+    "32_O13": {
+      "ratings": {
+        "base": "uncertain",
+        "detail": "uncertain"
+      },
+      "note": ""
+    },
+    "32_O14": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "recognized"
+      },
+      "note": ""
+    },
+    "32_O17": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "partial"
+      },
+      "note": ""
+    },
+    "33_O01": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "recognized"
+      },
+      "note": ""
+    },
+    "33_O04": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "partial"
+      },
+      "note": ""
+    },
+    "34_O07": {
+      "ratings": {
+        "base": "uncertain",
+        "detail": "uncertain"
+      },
+      "note": ""
+    },
+    "34_O19": {
+      "ratings": {
+        "base": "partial",
+        "detail": "partial"
+      },
+      "note": ""
+    },
+    "34_O29": {
+      "ratings": {
+        "base": "wrong_class",
+        "detail": "wrong_class"
+      },
+      "note": ""
+    },
+    "35_O01": {
+      "ratings": {
+        "base": "wrong_class",
+        "detail": "wrong_class"
+      },
+      "note": ""
+    },
+    "35_O11": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "wrong_class"
+      },
+      "note": ""
+    },
+    "36_O01": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "recognized"
+      },
+      "note": ""
+    },
+    "36_O08": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "recognized"
+      },
+      "note": ""
+    },
+    "36_O10": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "recognized"
+      },
+      "note": ""
+    },
+    "37_O02": {
+      "ratings": {
+        "base": "partial",
+        "detail": "partial"
+      },
+      "note": ""
+    },
+    "37_O08": {
+      "ratings": {
+        "base": "partial",
+        "detail": "partial"
+      },
+      "note": ""
+    },
+    "37_O12": {
+      "ratings": {
+        "base": "recognized",
+        "detail": "wrong_class"
+      },
+      "note": ""
+    },
+    "38_O01": {
+      "ratings": {
+        "base": "wrong_class",
+        "detail": "partial"
+      },
+      "note": ""
+    },
+    "39_O01": {
+      "ratings": {
+        "base": "uncertain",
+        "detail": "uncertain"
+      },
+      "note": ""
+    },
+    "40_O01": {
+      "ratings": {
+        "base": "uncertain",
+        "detail": "uncertain"
+      },
+      "note": ""
+    }
+  },
+  "meaning": "Human development ratings; not pixel accuracy or contour correctness",
+  "exported_at": "2026-10-13T01:57:19.539Z"
+}

@@ -1,0 +1,52 @@
+{
+  "repository": "https://github.com/csmty/InfraredIR",
+  "commit": "060a3c2d6b0407f1af1429efbbb643887fbcce64",
+  "architecture": "SegFormer/WeTr with mit_b3, embedding_dim 256, 15 FMB classes",
+  "files": [
+    {
+      "path": "nets/segformer/core/mix_transformer.py",
+      "url": "https://github.com/csmty/InfraredIR/blob/060a3c2d6b0407f1af1429efbbb643887fbcce64/nets/segformer/core/mix_transformer.py",
+      "git_blob_sha": "b9471ec7297affbd59899ecda4cf2e3a431d741f"
+    },
+    {
+      "path": "nets/segformer/core/segformer_head.py",
+      "url": "https://github.com/csmty/InfraredIR/blob/060a3c2d6b0407f1af1429efbbb643887fbcce64/nets/segformer/core/segformer_head.py",
+      "git_blob_sha": "975e697d5545a7395537ced8f755a58719351898"
+    },
+    {
+      "path": "nets/segformer/core/model.py",
+      "url": "https://github.com/csmty/InfraredIR/blob/060a3c2d6b0407f1af1429efbbb643887fbcce64/nets/segformer/core/model.py",
+      "git_blob_sha": "004bb8f31e1ab62e2310926470f3ab18c1a9831f"
+    },
+    {
+      "path": "nets/segformer/datasets/imutils.py",
+      "url": "https://github.com/csmty/InfraredIR/blob/060a3c2d6b0407f1af1429efbbb643887fbcce64/nets/segformer/datasets/imutils.py",
+      "git_blob_sha": "60825e3c734a24ae0581db1799fd4a9068be0d43"
+    },
+    {
+      "path": "nets/segformer/test.py",
+      "url": "https://github.com/csmty/InfraredIR/blob/060a3c2d6b0407f1af1429efbbb643887fbcce64/nets/segformer/test.py",
+      "git_blob_sha": "e46b4806b34bf41cef950db9e1151637b0fb3787"
+    },
+    {
+      "path": "nets/segformer/configs/fmb.yaml",
+      "url": "https://github.com/csmty/InfraredIR/blob/060a3c2d6b0407f1af1429efbbb643887fbcce64/nets/segformer/configs/fmb.yaml",
+      "git_blob_sha": "8849540835dde7d715c8b94a50468f9935cb2873"
+    },
+    {
+      "path": "nets/segformer/datasets/fmb.py",
+      "url": "https://github.com/csmty/InfraredIR/blob/060a3c2d6b0407f1af1429efbbb643887fbcce64/nets/segformer/datasets/fmb.py",
+      "git_blob_sha": "d7eb0b519aece7e52ad5e979ccbd5c94b48ff86e"
+    }
+  ],
+  "adaptations": [
+    "Encoder: replace timm utility import with PyTorch equivalents; preserve all parameter names.",
+    "Decoder: reproduce the used mmcv ConvModule subset as PyTorch Conv2d(no bias)+BatchNorm2d+ReLU. Frozen eval agrees with SyncBatchNorm.",
+    "Strict loading keeps the unused classifier for checkpoint compatibility.",
+    "No pretrained encoder download; complete best_model.pth supplies all weights.",
+    "Preprocess and baseline interpolation exactly follow selected author test.py."
+  ],
+  "license": "Encoder and decoder carry NVIDIA Source Code License; see _vendor/LICENSE_NVIDIA.",
+  "checkpoint_url": "https://drive.google.com/drive/folders/1spGJsgOaTfi-EHqKRh_8a2jomlLhKiLa",
+  "research_scope": "A frozen external semantic prior, not a trained contribution of this FLIR project."
+}
