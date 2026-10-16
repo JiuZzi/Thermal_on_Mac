@@ -7,7 +7,7 @@
 最新阶段：冻结的 FMB SegFormer-B3 作者512语义与原C2c结构显著性共同调节轮廓重要性，增加对语义误抑制线索的有限保护。40张固定trainB图与90个裁剪已导出原C2c、语义v1、联合保护和同全图均值缩放对照。三个预先指出的弱行人线索部分恢复，杂纹也略有回升；尚未获得独立边界精度或RGB增益证据。
 语义入口为 `scripts/preview_semantics.py`，语义轮廓入口为 `scripts/preview_semantic_contours.py`，联合保护入口为 `scripts/preview_structure_semantic_contours.py`；运行和审阅说明见 [SegFormer 红外语义预览](docs/SegFormer红外语义预览.md)。完整方案、当前阶段与外部监督来源以 [我的方法的详细描述](我的方法的详细描述.md) 为准。
 
-训练接入：`--model semantic_contour_cycle_gan` 在线生成当前裁剪/翻转后的 `joint512`，也在循环合成 TIR 上重算，以 `[TIR,E_joint,0]` 训练原 CycleGAN。冻结语义与固定融合规则不更新；本轮不启用 JR 或置信度。Windows 启动器及五轮/完整80轮命令见 [结构语义保护版 Windows 训练](docs/结构语义保护版Windows训练.md)。正式效果待训练验证。
+训练接入：`--model semantic_contour_cycle_gan` 在线生成当前裁剪/翻转后的 `joint512`，也在循环合成 TIR 上重算，以 `[TIR,E_joint,0]` 训练原 CycleGAN。冻结语义与固定融合规则不更新；本轮不启用 JR 或置信度。Windows 启动器及五轮/完整80轮命令见 [结构语义保护版 Windows 训练](docs/结构语义保护版Windows训练.md)；3080 Ubuntu 的压缩包更新、环境检查和完整训练见 [结构语义保护版 Ubuntu 训练](docs/结构语义保护版Ubuntu训练.md)。正式效果待训练验证。
 
 ## 1. 研究目标与边界
 

@@ -123,7 +123,7 @@ def structure_texture_importance(
     return importance.astype(np.float32), gaussian_filter(clutter, 1.5).astype(np.float32)
 
 
-def make_adaptive_saliency_edge(
+def make_adaptive_saliency_components(
     image: np.ndarray,
     highs: tuple[float, ...],
     low_ratio: float,
@@ -132,7 +132,11 @@ def make_adaptive_saliency_edge(
     background_gain: float,
     variant: str = "structure_texture",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Return soft edge, importance, fine, coarse for two C2c candidates."""
+    """Return fine, coarse, importance and clutter without a fused contour.
+
+    Training can reuse these exact C2c components without generating preview
+    controls or recomputing the structural importance and clutter maps.
+    """
     if variant not in (
         "structure_texture", "edge_preserving", "structure_texture_legacy",
         "structure_texture_density_only", "region_recall",
@@ -163,6 +167,22 @@ def make_adaptive_saliency_edge(
         importance, _ = region_recall_importance(
             candidate_image, fine, coarse, importance, background_gain=background_gain,
         )
+    return fine, coarse, importance, clutter
+
+
+def make_adaptive_saliency_edge(
+    image: np.ndarray,
+    highs: tuple[float, ...],
+    low_ratio: float,
+    width: float,
+    sigmas: tuple[float, float, float],
+    background_gain: float,
+    variant: str = "structure_texture",
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Return soft edge, importance, fine, coarse for two C2c candidates."""
+    fine, coarse, importance, clutter = make_adaptive_saliency_components(
+        image, highs, low_ratio, width, sigmas, background_gain, variant,
+    )
     # Preserve a coarse structural route everywhere. Importance only decides
     # how much fine detail to add; it never sets all edges to zero.
     result = importance * fine + (1.0 - importance) * background_gain * coarse

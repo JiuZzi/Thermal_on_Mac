@@ -13,7 +13,7 @@ import numpy as np
 import torch
 
 from .conditioned_generator import ConditionedGenerator
-from .semantic_edges import SETTINGS, IMPORTANT_CLASSES, make_structure_semantic_contours
+from .semantic_edges import SETTINGS, IMPORTANT_CLASSES, make_structure_semantic_condition
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -26,13 +26,13 @@ class FrozenSemanticPrior:
         if scripts not in sys.path:
             sys.path.insert(0, scripts)
         from semantic_preview.checkpoint import load_checkpoint
-        from semantic_preview.inference import predict
+        from semantic_preview.inference import predict_probabilities
 
         # Loading an externally initialized network must not alter the seed
         # used to initialize the GAN or sample its training data.
         with torch.random.fork_rng(devices=[]):
             self.model, self.info = load_checkpoint(checkpoint, torch.device("cpu"))
-        self._predict = predict
+        self._predict = predict_probabilities
         self.device = torch.device("cpu")
 
     def predict(self, gray, device):
@@ -44,7 +44,7 @@ class FrozenSemanticPrior:
         # TIR. Canny still receives the original continuous normalized image.
         image = np.rint(np.clip(gray, 0, 1) * 255).astype(np.uint8)
         return self._predict(self.model, image, device, short_side=512,
-                             flip_tta=False)["probabilities"]
+                             flip_tta=False)
 
 
 class SemanticContourGenerator(ConditionedGenerator):
@@ -94,7 +94,7 @@ class SemanticContourGenerator(ConditionedGenerator):
         maps = []
         for image in gray:
             probabilities = self.semantic_prior.predict(image, tir.device)
-            maps.append(make_structure_semantic_contours(image, probabilities)["joint512"])
+            maps.append(make_structure_semantic_condition(image, probabilities))
         edge = torch.from_numpy(np.stack(maps)[:, None]).to(device=tir.device, dtype=tir.dtype)
         return edge, torch.zeros_like(edge)
 

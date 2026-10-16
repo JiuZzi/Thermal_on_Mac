@@ -34,7 +34,7 @@ def preprocess(gray, short_side=512):
 
 
 @torch.inference_mode()
-def predict(model, gray, device, short_side=512, flip_tta=False):
+def _infer_probabilities(model, gray, device, short_side=512, flip_tta=False):
     if model.training or any(parameter.requires_grad for parameter in model.parameters()):
         raise ValueError("Semantic review requires an eval-mode frozen model")
     tensor, input_size = preprocess(gray, short_side)
@@ -52,9 +52,22 @@ def predict(model, gray, device, short_side=512, flip_tta=False):
     probabilities = probabilities[0].float().cpu().numpy()
     if not np.isfinite(probabilities).all() or not np.allclose(probabilities.sum(0), 1, atol=2e-6):
         raise ValueError("Invalid categorical soft responses")
+    return probabilities, input_size, tuple(logits.shape[-2:])
+
+
+def predict_probabilities(model, gray, device, short_side=512, flip_tta=False):
+    """Frozen inference for training; omit labels and diagnostic score maps."""
+    return _infer_probabilities(model, gray, device, short_side, flip_tta)[0]
+
+
+def predict(model, gray, device, short_side=512, flip_tta=False):
+    """Frozen review inference, including the original diagnostic outputs."""
+    probabilities, input_size, logit_size = _infer_probabilities(
+        model, gray, device, short_side, flip_tta,
+    )
     labels = probabilities.argmax(0).astype(np.uint8)
     # Diagnostic uncertainty only; neither entropy nor max score is edge confidence.
     entropy = -(probabilities * np.log(np.maximum(probabilities, 1e-12))).sum(0) / np.log(15)
     return dict(probabilities=probabilities, labels=labels, normalized_entropy=entropy.astype(np.float32),
                 max_score=probabilities.max(0).astype(np.float32), input_size=input_size,
-                logit_size=tuple(logits.shape[-2:]), flip_tta=flip_tta)
+                logit_size=logit_size, flip_tta=flip_tta)

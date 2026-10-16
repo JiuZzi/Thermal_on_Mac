@@ -19,6 +19,7 @@ sys.path.insert(0,str(ROOT/"pytorch-CycleGAN-and-pix2pix"))
 from models.semantic_edges import (
     FMB_CLASS_NAMES, semantic_importance, fuse_candidates, make_semantic_contours,
     structure_semantic_importance, make_structure_semantic_contours,
+    make_structure_semantic_condition,
 )
 from models.conditioned_generator import ConditionedGenerator
 from preview_semantic_contours import read_cache, make_sheet, parse_args
@@ -125,6 +126,29 @@ class StructureSemanticTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         torch.set_num_threads(1)
+
+    def test_training_condition_matches_review_for_mixed_scores_and_geometries(self):
+        rng = np.random.default_rng(42)
+        for shape in ((32, 40), (64, 64), (256, 256)):
+            image = rng.random(shape, dtype=np.float32)
+            probabilities = rng.random((15, *shape), dtype=np.float32)
+            probabilities /= probabilities.sum(0, keepdims=True)
+            for gray, responses in ((image, probabilities),
+                                    (image[:, ::-1], probabilities[:, :, ::-1]),
+                                    (np.full(shape, .5, np.float32), scores("person", shape))):
+                with self.subTest(shape=shape):
+                    expected = make_structure_semantic_contours(gray, responses)["joint512"]
+                    actual = make_structure_semantic_condition(gray, responses)
+                    np.testing.assert_array_equal(actual, expected)
+
+    def test_training_condition_keeps_input_validation(self):
+        image = np.zeros((32, 40), np.float32)
+        with self.assertRaisesRegex(ValueError, "coordinates"):
+            make_structure_semantic_condition(image, scores("person", (40, 32)))
+        for invalid in (scores("person", image.shape) * .9,
+                        scores("person", image.shape) + float("nan")):
+            with self.assertRaises(ValueError):
+                make_structure_semantic_condition(image, invalid)
 
     def test_clear_fine_structure_can_survive_wrong_background_semantics(self):
         shape=(5,7);ones=np.ones(shape,np.float32);zero=np.zeros(shape,np.float32)

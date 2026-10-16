@@ -7,6 +7,7 @@ It does not register a new training mode or change existing C2 checkpoints.
 import numpy as np
 
 from .saliency_edges import (
+    make_adaptive_saliency_components,
     make_adaptive_saliency_edge,
     soft_multi_at_sigma,
     structure_texture_importance,
@@ -132,6 +133,27 @@ def structure_semantic_importance(base_importance, semantic_weight, semantic_sup
     headroom = np.maximum(base - semantic_weight, 0.0)
     joint = semantic_weight + gate * headroom
     return joint.astype(np.float32), gate, advantage
+
+
+def make_structure_semantic_condition(image, probabilities, class_names=FMB_CLASS_NAMES):
+    """Return only joint512 for training, with unchanged candidates and fusion.
+
+    Each C2c candidate is computed once; the structural importance and clutter
+    are reused. C2b, the original C2c output and semantic-v1 preview maps are
+    not generated on this path.
+    """
+    image = _unit_map(image, "TIR")
+    importance, support = semantic_importance(probabilities, class_names)
+    if importance.shape != image.shape:
+        raise ValueError("Semantic responses must match the processed TIR coordinates")
+    fine, coarse, base, clutter = make_adaptive_saliency_components(
+        image, SETTINGS["high_thresholds"], SETTINGS["low_ratio"], SETTINGS["soft_width"],
+        SETTINGS["sigmas"], SETTINGS["background_gain"], variant="structure_texture",
+    )
+    joint, _, _ = structure_semantic_importance(
+        base, importance, support, fine, coarse, clutter,
+    )
+    return fuse_candidates(fine, coarse, clutter, joint)
 
 
 def make_structure_semantic_contours(image, probabilities, class_names=FMB_CLASS_NAMES):

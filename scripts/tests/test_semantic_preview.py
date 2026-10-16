@@ -20,7 +20,7 @@ from torch.nn import functional as F
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 from semantic_preview.checkpoint import validate_state_dict, load_checkpoint, sha256_file
-from semantic_preview.inference import preprocess, predict, MEAN, STD
+from semantic_preview.inference import preprocess, predict, predict_probabilities, MEAN, STD
 from semantic_preview.model import ConvModule
 from semantic_preview.review import render_crop, write_page, score_maps
 import preview_semantics
@@ -80,6 +80,19 @@ class SemanticPreviewTests(unittest.TestCase):
         wrong_order = F.interpolate(model.logits.softmax(1), size=gray.shape, mode="bilinear", align_corners=True)[0].numpy()
         self.assertGreater(float(np.abs(reference-wrong_order).max()), .01)
         self.assertEqual(output["labels"].shape, gray.shape)
+
+    def test_probabilities_only_match_review_without_diagnostic_entropy(self):
+        gray = np.arange(11 * 17, dtype=np.uint8).reshape(11, 17)
+        for flip_tta in (False, True):
+            model = InputLogits().eval().requires_grad_(False)
+            expected = predict(model, gray, "cpu", short_side=32,
+                               flip_tta=flip_tta)["probabilities"]
+            with patch("semantic_preview.inference.np.log",
+                       side_effect=AssertionError("Training must not compute entropy")):
+                actual = predict_probabilities(model, gray, "cpu", short_side=32,
+                                               flip_tta=flip_tta)
+            self.assertIsInstance(actual, np.ndarray)
+            np.testing.assert_array_equal(actual, expected)
 
     def test_flip_probe_inverts_coordinates_and_averages_class_responses(self):
         model = InputLogits().eval().requires_grad_(False)

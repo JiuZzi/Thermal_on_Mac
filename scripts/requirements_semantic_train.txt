@@ -1,0 +1,9 @@
+# Supplemental packages only; install a compatible CUDA torch/torchvision pair separately.
+# In an existing C1 environment, pip retains versions satisfying these requirements.
+numpy
+Pillow>=10.0.0
+scipy
+scikit-image
+dominate>=2.8.0
+wandb>=0.16.0
+-r requirements_semantic_preview.txt

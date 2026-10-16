@@ -1,6 +1,7 @@
 """Training gates for geometry, frozen prior, cycle gradients and checkpoints."""
 
 import copy
+import random
 from pathlib import Path
 import sys
 import tempfile
@@ -85,6 +86,54 @@ class SemanticTrainingTests(unittest.TestCase):
         np.testing.assert_array_equal(result[0,1].numpy(), expected)
         torch.testing.assert_close(result[:,:1], tir)
         self.assertEqual(result[:,2:].count_nonzero().item(), 0)
+
+    def test_training_omits_review_controls_and_computes_c2c_components_once(self):
+        from skimage.feature import canny
+        from models.saliency_edges import structure_texture_importance
+
+        generator = SemanticContourGenerator(nn.Identity(), "stub.pth")
+        with patch("models.semantic_edges.make_semantic_contours",
+                   side_effect=AssertionError("Training must not build preview controls")), \
+             patch("skimage.feature.canny", wraps=canny) as edges, \
+             patch("models.saliency_edges.structure_texture_importance",
+                   wraps=structure_texture_importance) as structure:
+            generator(fixture())
+        self.assertEqual(edges.call_count, 9)
+        self.assertEqual(structure.call_count, 1)
+
+    def test_reference_and_fast_updates_match_losses_gradients_and_optimizer_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            torch.manual_seed(42)
+            reference = create_model(options(root, name="reference"))
+            reference.setup(reference.opt)
+            torch.manual_seed(42)
+            optimized = create_model(options(root, name="optimized"))
+            optimized.setup(optimized.opt)
+            tir = fixture()[:, :, :, :32]
+            random.seed(42)
+            for step in range(3):
+                image = tir.flip(-1) if step % 2 else tir
+                data = {"B":image,"A":image.repeat(1,3,1,1),
+                        "B_paths":["tir.png"],"A_paths":["rgb.png"]}
+                rng_state = random.getstate()
+                reference.set_input(data)
+                with patch("models.semantic_contour.make_structure_semantic_condition",
+                           side_effect=lambda gray, scores: make_structure_semantic_contours(gray, scores)["joint512"]):
+                    reference.optimize_parameters()
+                random.setstate(rng_state)
+                optimized.set_input(data)
+                optimized.optimize_parameters()
+                self.assertEqual(reference.get_current_losses(), optimized.get_current_losses())
+                for name in ("fake_A", "fake_B", "rec_A", "rec_B", "contour_joint"):
+                    torch.testing.assert_close(getattr(reference, name), getattr(optimized, name), atol=0, rtol=0)
+                for name in ("netG_A", "netG_B", "netD_A", "netD_B"):
+                    a, b = getattr(reference, name), getattr(optimized, name)
+                    torch.testing.assert_close(a.state_dict(), b.state_dict(), atol=0, rtol=0)
+                    for pa, pb in zip(a.parameters(), b.parameters()):
+                        torch.testing.assert_close(pa.grad, pb.grad, atol=0, rtol=0)
+                for a, b in zip(reference.optimizers, optimized.optimizers):
+                    torch.testing.assert_close(a.state_dict(), b.state_dict(), atol=0, rtol=0)
 
     def test_cropped_flipped_current_input_is_used_without_full_frame_cache(self):
         generator = SemanticContourGenerator(nn.Identity(), "stub.pth")
