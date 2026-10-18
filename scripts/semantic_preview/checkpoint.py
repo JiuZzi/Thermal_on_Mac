@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 import hashlib
+from importlib import import_module
 from pathlib import Path
 import sys
 import typing
@@ -37,7 +38,13 @@ def metadata_safe_globals():
     from omegaconf.nodes import AnyNode
     from omegaconf import DictConfig, ListConfig
     # Never fall back to unrestricted pickle. These are data/config classes.
-    scalar = np._core.multiarray.scalar if hasattr(np, "_core") else np.core.multiarray.scalar
+    # NumPy 1.26 also exposes an _core compatibility package, but that does
+    # not mean np._core.multiarray is an imported attribute. Import the
+    # version-specific module explicitly; keep both pickle names below.
+    scalar_module = ("numpy._core.multiarray"
+                     if np.lib.NumpyVersion(np.__version__) >= "2.0.0b1"
+                     else "numpy.core.multiarray")
+    scalar = import_module(scalar_module).scalar
     allowed = [DictConfig, ListConfig, ContainerMetadata, Metadata, AnyNode,
                defaultdict, typing.Any, list, dict, int, float, str, bool, np.dtype,
                (scalar, "numpy.core.multiarray.scalar"),

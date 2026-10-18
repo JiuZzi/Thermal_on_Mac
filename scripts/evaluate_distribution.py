@@ -25,6 +25,13 @@ import numpy as np
 from PIL import Image
 
 
+# runpy.run_path (used by the seeded launch command) does not add the script
+# directory to sys.path. Keep sibling imports working for both CLI entrypoints.
+SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+
 IMAGE_EXTENSIONS = {".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff"}
 
 
@@ -145,7 +152,7 @@ def compute_edge_metrics(tir_files: list[Path], generated_files: list[Path], sig
         image_pairs.append((tir_gray, generated_gray))
 
     rows = []
-    for high_threshold in thresholds:
+    for threshold_index, high_threshold in enumerate(thresholds, 1):
         low_threshold = float(high_threshold * 0.5)
         recall_sum = precision_sum = f1_sum = 0.0
         valid_images = 0
@@ -176,6 +183,8 @@ def compute_edge_metrics(tir_files: list[Path], generated_files: list[Path], sig
             "f1": f1_sum / valid_images,
             "valid_images": valid_images,
         })
+        if threshold_index == 1 or threshold_index % 10 == 0 or threshold_index == len(thresholds):
+            print(f"CPU edge metrics: {threshold_index}/{len(thresholds)} threshold pairs completed", flush=True)
 
     return rows, {
         "apce_py": float(np.mean([row["recall_apce"] for row in rows])),
@@ -257,6 +266,7 @@ def main() -> None:
         kid_value = float(kid_mean.detach().cpu())
         kid_std_value = float(kid_std.detach().cpu())
 
+    print(f"FID/KID complete. Computing CPU edge metrics for {len(tir_files)} images at 99 thresholds...", flush=True)
     edge_rows, edge_summary = compute_edge_metrics(
         tir_files, generated_files, args.edge_canny_sigma
     )

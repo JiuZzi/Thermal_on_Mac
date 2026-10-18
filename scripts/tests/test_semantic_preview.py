@@ -19,7 +19,7 @@ from torch.nn import functional as F
 
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
-from semantic_preview.checkpoint import validate_state_dict, load_checkpoint, sha256_file
+from semantic_preview.checkpoint import validate_state_dict, load_checkpoint, sha256_file, metadata_safe_globals
 from semantic_preview.inference import preprocess, predict, predict_probabilities, MEAN, STD
 from semantic_preview.model import ConvModule
 from semantic_preview.review import render_crop, write_page, score_maps
@@ -151,6 +151,35 @@ class SemanticPreviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_state_dict({1: torch.ones(1)})
 
+    def test_numpy_scalar_import_handles_126_core_stub_and_2x_namespace(self):
+        scalar = np.float64  # Sentinel: no need to import private modules in this test.
+        for version, module in (("1.26.4", "numpy.core.multiarray"),
+                                ("2.0.0b1", "numpy._core.multiarray"),
+                                ("2.1.0", "numpy._core.multiarray")):
+            # Reproduce the 1.26 failure: _core exists, multiarray does not.
+            numpy_view = SimpleNamespace(__version__=version, lib=np.lib,
+                                         dtype=np.dtype, _core=SimpleNamespace())
+            with self.subTest(version=version), \
+                 patch("semantic_preview.checkpoint.np", numpy_view), \
+                 patch("semantic_preview.checkpoint.import_module",
+                       return_value=SimpleNamespace(scalar=scalar)) as importer:
+                allowed = metadata_safe_globals()
+            importer.assert_called_once_with(module)
+            self.assertIn((scalar, "numpy.core.multiarray.scalar"), allowed)
+            self.assertIn((scalar, "numpy._core.multiarray.scalar"), allowed)
+
+    @unittest.skipUnless(hasattr(torch.serialization, "safe_globals"),
+                         "Restricted-load regression requires PyTorch safe_globals")
+    def test_numpy_metadata_loads_with_restricted_torch_loader(self):
+        stream = io.BytesIO()
+        reference = np.float64(.625)
+        torch.save({"score": reference}, stream)
+        stream.seek(0)
+        with torch.serialization.safe_globals(metadata_safe_globals()):
+            loaded = torch.load(stream, map_location="cpu", weights_only=True)
+        self.assertEqual(type(loaded["score"]), type(reference))
+        self.assertEqual(loaded["score"], reference)
+
     def fixture_review(self, root):
         image_dir = root / "trainB"
         image_dir.mkdir()
@@ -209,7 +238,7 @@ class SemanticPreviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/"index.html"
             write_page(path,[],[],["base"],"pack",{"short_side":512,"detail_short_side":0})
-            page=path.read_text()
+            page=path.read_text(encoding="utf-8")
             self.assertIn("lines.join('\\n')",page)
             self.assertNotIn("lines.join('\n')",page)
             self.assertNotIn('<script src=',page)
