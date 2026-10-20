@@ -2,6 +2,8 @@
 
 更新时间：2026-10-14。
 
+后续部署方式更新（2026-10-20）：统一使用 tar.gz 手工上传、在项目根目录解压。当前语义／颜色两组入口见[两组 Ubuntu tar 训练](语义颜色两组Ubuntu训练.md)；下方 ZIP 部分保留为旧版部署记录。
+
 服务器项目路径已确认是 `/home/ubuntu/work/JiuZzi/Thermal_on_Mac`，训练子目录为 `pytorch-CycleGAN-and-pix2pix`。原环境为 `c1`，本次语义训练使用你后来建立的 `c1_sem512` 环境。压缩包解压到 **`Thermal_on_Mac` 根目录**，即训练子目录的上一层。
 
 ## 1. 当前代码已经接入什么
