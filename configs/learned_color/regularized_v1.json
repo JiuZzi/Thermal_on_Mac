@@ -1,0 +1,12 @@
+{
+  "components": [1, 2, 3, 5],
+  "variance_floor": 4.0,
+  "support_quantile": 0.99,
+  "min_train_groups": 3,
+  "min_val_groups": 2,
+  "min_group_pixels": 32,
+  "image_cap": 256,
+  "group_cap": 1024,
+  "seed": 42,
+  "bootstrap_runs": 3
+}

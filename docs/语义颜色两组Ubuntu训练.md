@@ -95,4 +95,6 @@ tar -czf semantic_color_pair_results_20261020.tar.gz \
 sha256sum semantic_color_pair_results_20261020.tar.gz > semantic_color_pair_results_20261020.tar.gz.sha256
 ```
 
-结果包不包含大检查点；完成后可先据同一批测试图和日志判断是否值得延长训练。本轮本地验证只证明更新包、实现和检查入口可用，GPU训练及实际质量仍待服务器运行。
+结果包不包含大检查点；完成后可先据同一批测试图和日志判断是否值得延长训练。
+
+2026-10-20回传更新：用户上传包已校验，两组各5轮和112图导出均完整。[全部对照与结果报告](../runs/evaluations/semantic_color_pair_20261020/index.html)已完成；人工颜色版尚未呈现清晰着色收益，详见报告中的结构代理、颜色统计及具体案例。

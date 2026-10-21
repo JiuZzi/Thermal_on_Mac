@@ -1,0 +1,3 @@
+# Only the offline RGB teacher stage; GAN and GMM fitting do not import it.
+transformers>=4.46,<6
+safetensors>=0.4.5

@@ -216,6 +216,11 @@ FLIR_datasets/
 datasets/
 data/
 
+# This data/ directory contains Python dataset loaders, not image datasets.
+!/pytorch-CycleGAN-and-pix2pix/data/
+/pytorch-CycleGAN-and-pix2pix/data/*
+!/pytorch-CycleGAN-and-pix2pix/data/*.py
+
 # Training / inference outputs
 runs/
 results/
