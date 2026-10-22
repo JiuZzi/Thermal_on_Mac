@@ -19,6 +19,8 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--save_epoch_freq', type=int, default=5, help='frequency of saving checkpoints at the end of epochs')
         parser.add_argument('--save_by_iter', action='store_true', help='whether saves model by iteration')
         parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')
+        parser.add_argument('--resume_total_iters', type=int, default=0,
+                            help='Saved optimizer-update count for weight recovery; single process and batch size 1 only')
         parser.add_argument('--epoch_count', type=int, default=1, help='the starting epoch count, we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>, ...')
         parser.add_argument('--stop_after_epoch', type=int, default=None,
                             help='stop after saving this complete epoch, preserving the original learning-rate schedule')

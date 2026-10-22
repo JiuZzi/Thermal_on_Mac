@@ -16,8 +16,10 @@ NEW_FILES=['scripts/learn_color_prior.py','scripts/prepare_grouped_color_data.py
            'scripts/check_learned_color.py','scripts/package_learned_color_ubuntu.py',
            'scripts/requirements_learned_color_teacher.txt','scripts/tests/test_color_prior_learning.py',
            'scripts/tests/test_learned_color_launcher.py',
+           'scripts/tests/test_training_recovery.py',
            'docs/RGB学得颜色先验实现与训练.md','docs/微量颜色损失Ubuntu训练.md',
            'docs/从零训练学得颜色先验Ubuntu完整流程.md',
+           'docs/临时目录故障后恢复学得颜色训练.md',
            'configs/learned_color/regularized_v1.json']
 
 

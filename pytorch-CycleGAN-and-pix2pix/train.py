@@ -28,6 +28,7 @@ from data import create_dataset
 from models import create_model
 from util.visualizer import Visualizer
 from util.util import init_ddp, cleanup_ddp
+from util.training_progress import recovery_offset
 
 
 if __name__ == "__main__":
@@ -46,24 +47,41 @@ if __name__ == "__main__":
     dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
     dataset_size = len(dataset)  # get the number of images in the dataset.
     print(f"The number of training images = {dataset_size}")
+    total_iters = opt.resume_total_iters
+    resume_skip = recovery_offset(total_iters, dataset_size, opt.epoch_count, opt.batch_size,
+                                  opt.continue_train,
+                                  torch.distributed.get_world_size() if torch.distributed.is_initialized() else 1)
 
     model = create_model(opt)  # create a model given opt.model and other options
     model.setup(opt)  # regular setup: load and print networks; create schedulers
+    if total_iters:
+        generator = getattr(model, "netG_A", None)
+        generator = getattr(generator, "module", generator)
+        counter = getattr(generator, "color_loss_updates", None)
+        if counter is not None and int(counter) != total_iters:
+            raise ValueError("Loaded checkpoint update counter differs from resume_total_iters")
     visualizer = Visualizer(opt)  # create a visualizer that display/save images and plots
-    total_iters = 0  # the total number of training iterations
+    if total_iters:
+        print(f"Weight recovery: {total_iters} saved updates; epoch {opt.epoch_count}, "
+              f"skip {resume_skip} batch positions. Optimizer, replay pool and RNG states were not saved.", flush=True)
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):
         epoch_start_time = time.time()  # timer for entire epoch
         iter_data_time = time.time()  # timer for data loading per iteration
-        epoch_iter = 0  # the number of training iterations in current epoch, reset to 0 every epoch
+        epoch_iter = resume_skip if epoch == opt.epoch_count else 0
         visualizer.reset()
         # Set epoch for DistributedSampler
         if hasattr(dataset, "set_epoch"):
             dataset.set_epoch(epoch)
 
         for i, data in enumerate(dataset):  # inner loop within one epoch
+            if epoch == opt.epoch_count and i < resume_skip:
+                if i % 1000 == 0:
+                    print(f"Recovery: reading/skipping saved batch positions {i}/{resume_skip}", flush=True)
+                continue
+            if epoch == opt.epoch_count and resume_skip and i == resume_skip:
+                print(f"Recovery: next optimizer update is {total_iters + 1}", flush=True)
             iter_start_time = time.time()  # timer for computation per iteration
-            if total_iters % opt.print_freq == 0:
-                t_data = iter_start_time - iter_data_time
+            t_data = iter_start_time - iter_data_time
 
             total_iters += opt.batch_size
             epoch_iter += opt.batch_size
