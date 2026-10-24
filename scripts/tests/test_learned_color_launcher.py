@@ -45,10 +45,12 @@ class LauncherTests(unittest.TestCase):
             root=Path(tmp); semantic=root/'semantic.pth'; semantic.write_text('not loaded')
             manifest=dict(dataset_id='independent',domains={'A':[], 'B':[dict(split='val')]})
             recipes=[]
-            for action,option_class in [('--train',TrainOptions),('--test-only',TestOptions)]:
+            for variant,action,option_class in [(v,a,c) for v in ('selective_v1','clarity_v1','recall_v1')
+                                               for a,c in [('--train',TrainOptions),('--test-only',TestOptions)]]:
                 argv=['run_learned_color.py',action,'--data-manifest',str(root/'data.json'),
                       '--prior',str(root/'prior.json'),'--semantic-checkpoint',str(semantic),
-                      '--name','micro_loss_uncreated','--color-loss-weight','.01','--color-loss-warmup-steps','1000']
+                      '--name','micro_loss_uncreated','--color-loss-weight','.01','--color-loss-warmup-steps','1000',
+                      '--contour-variant',variant]
                 captured=[]
                 with patch.object(sys,'argv',argv), \
                      patch('data.grouped_unaligned_dataset.validate_manifest',return_value=(manifest,root)), \
@@ -59,8 +61,9 @@ class LauncherTests(unittest.TestCase):
                     run_learned_color.main()
                 with patch.object(sys,'argv',['entrypoint.py',*captured[0][3:]]):
                     options=option_class().gather_options()
-                recipes.append((options.learned_color_loss_weight,options.learned_color_loss_min_quality,options.learned_color_loss_warmup_steps))
-            self.assertEqual(recipes,[(.01,.5,1000)]*2)
+                recipes.append((options.learned_color_loss_weight,options.learned_color_loss_min_quality,
+                                options.learned_color_loss_warmup_steps,options.contour_variant))
+            self.assertEqual(recipes,[(.01,.5,1000,v) for v in ('selective_v1','clarity_v1','recall_v1') for _ in range(2)])
 
     def test_scratch_defaults_generate_full_40_plus_40_schedule_without_loading_gans(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -83,6 +86,7 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(options.save_epoch_freq,5)
             self.assertEqual(options.epoch_count,1)
             self.assertFalse(options.continue_train)
+            self.assertEqual(options.contour_variant,'joint512')
             self.assertIsNone(options.init_condition_dir)
             self.assertIsNone(options.init_semantic_dir)
 

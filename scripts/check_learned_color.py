@@ -26,12 +26,14 @@ def main():
     parser.add_argument('--color-loss-weight',type=float,default=.01)
     parser.add_argument('--color-loss-min-quality',type=float,default=.5)
     parser.add_argument('--color-loss-warmup-steps',type=int,default=1000)
+    parser.add_argument('--contour-variant',choices=('joint512','selective_v1','clarity_v1','recall_v1'),default='joint512')
     args=parser.parse_args()
     if args.output_dir.exists() or args.size<32 or args.size%4:
         parser.error('New output directory and a crop >=32 divisible by four required')
     argv=['train.py','--model','learned_color_cycle_gan','--dataroot',str(args.rgb.parent),
           '--name',args.output_dir.name,'--checkpoints_dir',str(args.output_dir.parent),
           '--semantic_checkpoint',str(args.semantic_checkpoint),'--learned_color_prior',str(args.prior),
+          '--contour_variant',args.contour_variant,
           '--direction','BtoA','--input_nc','1','--output_nc','3','--netG','resnet_9blocks',
           '--ngf','64','--netD','pixel','--ndf','8','--norm','instance','--no_dropout',
           '--reliability_flip','--learned_color_dropout','0','--seed','42',
@@ -70,6 +72,7 @@ def main():
         model.set_input(data); model.optimize_parameters()
         losses.append({key:float(getattr(model,'loss_'+key).detach()) if torch.is_tensor(getattr(model,'loss_'+key))
                        else float(getattr(model,'loss_'+key)) for key in model.loss_names})
+    model.save_guidance_diagnostics(epoch=1, total_iters=2)
     gradient=sum(float(p.grad.abs().sum()) for p in g.learned_projections.parameters() if p.grad is not None)
     encoder_gradient=sum(float(p.grad.abs().sum()) for p in g.learned_encoder.parameters() if p.grad is not None)
     if gradient<=0 or encoder_gradient<=0 or not all(torch.isfinite(torch.tensor(list(row.values()))).all() for row in losses):
@@ -77,9 +80,11 @@ def main():
     if g.semantic_prior.model.training or any(p.grad is not None or p.requires_grad for p in g.semantic_prior.model.parameters()):
         raise RuntimeError('Semantic teacher not frozen')
     report=dict(evidence='real RGB/TIR, real frozen semantic weights and learned bank; two-step implementation smoke only',
+        contour_variant=args.contour_variant,
         crop_size=args.size,generator='resnet9/ngf64',discriminator='small pixel/ndf8; smoke only',
         initial_max_difference=difference,projection_gradient_l1=gradient,encoder_gradient_l1=encoder_gradient,
         raw_color_gradient_l1=color_gradient,color_loss_weight=args.color_loss_weight,
+        guidance_diagnostics=str(args.output_dir/'guidance_diagnostics_latest.json'),
         frozen_semantic=True,losses=losses,prior=g.learned_prior.metadata,
         quality_mean=float(model.color_aux['quality'].mean()),elapsed_seconds=time.perf_counter()-started,
         limits='No full RGB teacher cache, formal training, improved colors, lack of overfitting or external generalization established.')

@@ -14,6 +14,9 @@ import torch
 
 from .conditioned_generator import ConditionedGenerator
 from .semantic_edges import SETTINGS, IMPORTANT_CLASSES, make_structure_semantic_condition
+from .selective_semantic_edges import VARIANTS, SELECTIVE_SETTINGS, make_selective_semantic_condition
+from .clarity_semantic_edges import CLARITY_SETTINGS, make_clarity_semantic_condition
+from .recall_semantic_edges import RECALL_SETTINGS, make_recall_semantic_condition
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,9 +51,11 @@ class FrozenSemanticPrior:
 
 
 class SemanticContourGenerator(ConditionedGenerator):
-    """[TIR, joint512, zero] -> RGB, after loader crop/flip and on cycle TIR."""
+    """[TIR, selected contour, zero] -> RGB on transformed real and cycle TIR."""
 
-    def __init__(self, backbone, checkpoint, **condition_kwargs):
+    def __init__(self, backbone, checkpoint, contour_variant="joint512", **condition_kwargs):
+        if contour_variant not in VARIANTS:
+            raise ValueError("Unknown semantic contour variant")
         super().__init__(backbone, "soft_saliency", fusion_mode="direct", **condition_kwargs)
         fixed = (
             np.isclose(self.edge_sigma, 1.0)
@@ -66,6 +71,7 @@ class SemanticContourGenerator(ConditionedGenerator):
         if not fixed:
             raise ValueError("Protected semantic contours use the fixed v2 candidate/fusion settings; do not change Canny or saliency settings")
         self.semantic_prior = FrozenSemanticPrior(checkpoint)
+        self.contour_variant = contour_variant
         self.semantic_metadata = {
             "algorithm": "structure_semantic_protection_v1",
             "checkpoint_sha256": self.semantic_prior.info["sha256"],
@@ -74,6 +80,13 @@ class SemanticContourGenerator(ConditionedGenerator):
             "input": "current transformed TIR; rounded uint8 for semantic inference",
             "cycle": "recompute on current synthetic TIR; detached fixed condition",
         }
+        # Leave the legacy dictionary/signature byte-for-byte unchanged. New
+        # contours must never silently load a checkpoint trained on joint512.
+        if contour_variant != "joint512":
+            selection = {"selective_v1": SELECTIVE_SETTINGS, "clarity_v1": CLARITY_SETTINGS,
+                         "recall_v1": RECALL_SETTINGS}[contour_variant]
+            self.semantic_metadata.update(algorithm=selection["algorithm"],
+                                          contour_variant=contour_variant, selection=selection)
         digest = hashlib.sha256(json.dumps(self.semantic_metadata, sort_keys=True).encode()).digest()
         self.register_buffer("semantic_signature", torch.tensor(list(digest), dtype=torch.uint8))
 
@@ -85,6 +98,15 @@ class SemanticContourGenerator(ConditionedGenerator):
         super()._load_from_state_dict(state_dict, prefix, local_metadata, strict,
                                      missing_keys, unexpected_keys, error_msgs)
 
+    def contour_from_probabilities(self, image, probabilities):
+        if self.contour_variant == "joint512":
+            return make_structure_semantic_condition(image, probabilities)
+        if self.contour_variant == "selective_v1":
+            return make_selective_semantic_condition(image, probabilities)
+        if self.contour_variant == "clarity_v1":
+            return make_clarity_semantic_condition(image, probabilities)
+        return make_recall_semantic_condition(image, probabilities)
+
     def make_condition(self, tir, saliency_override=None):
         if saliency_override is not None:
             raise ValueError("Protected semantic contours compute importance online; external saliency overrides are not supported")
@@ -94,7 +116,7 @@ class SemanticContourGenerator(ConditionedGenerator):
         maps = []
         for image in gray:
             probabilities = self.semantic_prior.predict(image, tir.device)
-            maps.append(make_structure_semantic_condition(image, probabilities))
+            maps.append(self.contour_from_probabilities(image, probabilities))
         edge = torch.from_numpy(np.stack(maps)[:, None]).to(device=tir.device, dtype=tir.dtype)
         return edge, torch.zeros_like(edge)
 

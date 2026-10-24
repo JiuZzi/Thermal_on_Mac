@@ -10,6 +10,8 @@ import torch
 import torch.distributed as dist
 
 from .learned_color import LearnedColorGenerator
+from .guidance_diagnostics import guidance_report, save_report
+from .semantic_edges import FMB_CLASS_NAMES
 from .semantic_color_cycle_gan_model import SemanticColorCycleGANModel
 
 
@@ -96,6 +98,22 @@ class LearnedColorCycleGANModel(SemanticColorCycleGANModel):
     def forward(self):
         super().forward()
         self.semantic_quality = self.color_aux["quality"].detach()*2-1
+
+    def save_guidance_diagnostics(self, epoch, total_iters):
+        if dist.is_initialized() and dist.get_rank() != 0:
+            return
+        generator = self.netG_A.module if hasattr(self.netG_A, "module") else self.netG_A
+        supported = [name for name, flag in zip(FMB_CLASS_NAMES,
+                     generator.learned_prior.supported.detach().cpu().tolist()) if flag]
+        report = guidance_report(self.color_aux["probabilities"], self.color_aux["quality"], FMB_CLASS_NAMES,
+            supported=supported, min_quality=self.opt.learned_color_loss_min_quality,
+            boundary_radius=generator.boundary_radius, feature_gate=self.color_aux["feature_gate"],
+            scope="latest logged real-TIR minibatch; not an epoch average")
+        report.update(epoch=epoch, samples_seen=total_iters, flip_reliability=generator.flip,
+                      semantic_gate_enabled=generator.gate_semantic,
+                      color_loss_enabled=self.opt.learned_color_loss_weight > 0,
+                      contour_variant=generator.semantic.contour_variant)
+        save_report(report, self.save_dir)
 
     def backward_G(self):
         self.loss_idt_A = self.loss_idt_B = 0

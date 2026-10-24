@@ -73,6 +73,10 @@ def inspect_recovery(folder, suffix, data, args):
                   learned_color_loss_min_quality=args.color_loss_min_quality,
                   learned_color_loss_warmup_steps=args.color_loss_warmup_steps,
                   reliability_flip=not args.no_reliability_flip,gate_semantic_conditions=args.gate_semantic)
+    # Checkpoints saved before this option was introduced used joint512.
+    saved_contour=options.get('contour_variant','joint512')
+    if saved_contour!=args.contour_variant:
+        raise ValueError(f'Recovery must preserve contour_variant: saved {saved_contour}, requested {args.contour_variant}')
     for key,value in expected.items():
         if options.get(key)!=str(value):
             raise ValueError(f'Recovery must preserve {key}: saved {options.get(key)!r}, requested {value!r}')
@@ -105,6 +109,7 @@ def main():
     parser.add_argument('--data-manifest',type=Path,required=True); parser.add_argument('--prior',type=Path,required=True)
     parser.add_argument('--semantic-checkpoint',type=Path,required=True); parser.add_argument('--name',required=True)
     parser.add_argument('--mode',choices=('learned','zero_tokens'),default='learned')
+    parser.add_argument('--contour-variant',choices=('joint512','selective_v1','clarity_v1','recall_v1'),default='joint512')
     parser.add_argument('--from-scratch',action='store_true',help='Fresh GANs; defaults to 80 epochs, half decay, lr 0.0002')
     parser.add_argument('--resume',action='store_true',help='Recover this existing experiment from weight/update-count checkpoints')
     parser.add_argument('--resume-epoch',default='latest')
@@ -179,6 +184,7 @@ def main():
                                          ('recover experiment weights' if args.resume else
                                           ('load experiment checkpoint' if args.test_only else 'fresh GAN networks'))),
                          recovery=plan,
+                         contour_variant=args.contour_variant,
                          training_schedule=dict(total_epochs=args.epochs,constant_epochs=args.epochs-args.decay_epochs,
                                                 decay_epochs=args.decay_epochs,learning_rate=args.lr,save_every=args.save_every),
                          note=('Old warm-start weights may have seen the new validation groups. '
@@ -201,6 +207,7 @@ def main():
              '--model','learned_color_cycle_gan','--name',args.name,'--checkpoints_dir',str(checkpoints),
              '--semantic_checkpoint',str(args.semantic_checkpoint.resolve()),'--learned_color_prior',str(args.prior.resolve()),
              '--learned_color_mode',args.mode,'--condition_mode','soft_saliency','--fusion_mode','direct',
+             '--contour_variant',args.contour_variant,
              '--direction','BtoA','--input_nc','1','--output_nc','3','--netG','resnet_9blocks',
              '--netD','basic','--ngf','64','--ndf','64','--norm','instance','--no_dropout',
              '--color_condition','semantic','--lambda_color_prior','0',

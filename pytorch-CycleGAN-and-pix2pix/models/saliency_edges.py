@@ -7,6 +7,15 @@ The adaptive structure/texture map is not semantic recognition or confidence.
 import numpy as np
 
 
+REGION_RECALL_SETTINGS = {
+    "gradient_sigmas": (0.7, 1.0), "gradient_local_sigma": 3.0,
+    "gradient_floor": 0.015, "inner_sigma": 1.0,
+    "region_sigmas": (2.0, 4.0, 8.0), "region_floor": 0.02,
+    "neighborhood_size": 5, "support_sigma": 0.7,
+    "advantage_scale": 0.3, "importance_max": 0.85, "strength": 0.65,
+}
+
+
 def center_importance(
     height: int,
     width: int,
@@ -226,28 +235,29 @@ def region_recall_importance(
     # Absolute floors limit normalization of near-flat sensor noise. There is
     # deliberately no directional-coherence requirement on small curved edges.
     gradient_views = []
-    for sigma in (0.7, 1.0):
+    settings = REGION_RECALL_SETTINGS
+    for sigma in settings["gradient_sigmas"]:
         smooth = gaussian_filter(image, sigma)
         magnitude = np.hypot(sobel(smooth, axis=1) / 8.0, sobel(smooth, axis=0) / 8.0)
-        local_magnitude = gaussian_filter(magnitude, 3.0)
-        gradient_views.append(np.clip(magnitude / (local_magnitude + 0.015), 0.0, 1.0))
+        local_magnitude = gaussian_filter(magnitude, settings["gradient_local_sigma"])
+        gradient_views.append(np.clip(magnitude / (local_magnitude + settings["gradient_floor"]), 0.0, 1.0))
     relative_detail = np.sqrt(gradient_views[0] * gradient_views[1])
 
-    inner = gaussian_filter(image, 1.0)
+    inner = gaussian_filter(image, settings["inner_sigma"])
     region_views = []
-    for sigma in (2.0, 4.0, 8.0):
+    for sigma in settings["region_sigmas"]:
         mean = gaussian_filter(image, sigma)
         variance = np.maximum(gaussian_filter(image * image, sigma) - mean * mean, 0.0)
-        region_views.append(np.clip(np.abs(inner - mean) / (np.sqrt(variance) + 0.02), 0.0, 1.0))
+        region_views.append(np.clip(np.abs(inner - mean) / (np.sqrt(variance) + settings["region_floor"]), 0.0, 1.0))
     # Support must occur at two adjacent region scales; a 5x5 neighborhood
     # extends it to nearby contact boundaries without drawing a connecting line.
     region_support = np.maximum(np.minimum(region_views[0], region_views[1]),
                                 np.minimum(region_views[1], region_views[2]))
-    neighborhood_support = maximum_filter(region_support, size=5)
-    rescue_support = gaussian_filter(np.sqrt(relative_detail * neighborhood_support), 0.7)
-    advantage = np.clip((fine_edge - background_gain * coarse_edge) / 0.3, 0.0, 1.0)
-    headroom = np.maximum(0.85 - base_importance, 0.0)
-    importance = base_importance + 0.65 * headroom * rescue_support * advantage
+    neighborhood_support = maximum_filter(region_support, size=settings["neighborhood_size"])
+    rescue_support = gaussian_filter(np.sqrt(relative_detail * neighborhood_support), settings["support_sigma"])
+    advantage = np.clip((fine_edge - background_gain * coarse_edge) / settings["advantage_scale"], 0.0, 1.0)
+    headroom = np.maximum(settings["importance_max"] - base_importance, 0.0)
+    importance = base_importance + settings["strength"] * headroom * rescue_support * advantage
     return importance.astype(np.float32), dict(
         relative_detail=relative_detail.astype(np.float32),
         region_support=region_support.astype(np.float32),

@@ -17,9 +17,18 @@ NEW_FILES=['scripts/learn_color_prior.py','scripts/prepare_grouped_color_data.py
            'scripts/requirements_learned_color_teacher.txt','scripts/tests/test_color_prior_learning.py',
            'scripts/tests/test_learned_color_launcher.py',
            'scripts/tests/test_training_recovery.py',
+           'scripts/preview_selective_contours.py','scripts/preview_semantic_contours.py',
+           'scripts/preview_semantics.py','scripts/tests/test_selective_contours.py',
+           'scripts/tests/test_guidance_diagnostics.py',
+           'scripts/preview_contour_clarity.py','scripts/tests/test_contour_clarity.py',
+           'scripts/audit_contour_importance.py','scripts/tests/test_importance_recall.py',
+           'scripts/review_contour_candidates.py',
            'docs/RGB学得颜色先验实现与训练.md','docs/微量颜色损失Ubuntu训练.md',
            'docs/从零训练学得颜色先验Ubuntu完整流程.md',
            'docs/临时目录故障后恢复学得颜色训练.md',
+           'docs/结构选择与语义覆盖率优化.md',
+           'docs/轮廓清晰度候选与固定对照.md',
+           'docs/行人漏关注定位与重要性召回.md',
            'configs/learned_color/regularized_v1.json']
 
 

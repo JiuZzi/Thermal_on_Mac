@@ -1,4 +1,4 @@
-"""Independent semantic/color feature injection around the unchanged joint512."""
+"""Independent semantic/color features around the explicitly selected contour."""
 
 import hashlib
 import json
@@ -10,7 +10,6 @@ from torch.nn import functional as F
 
 from .semantic_color_prior import SemanticColorPrior, color_config
 from .semantic_contour import SemanticContourGenerator
-from .semantic_edges import make_structure_semantic_condition
 
 
 CONDITION_MODES = ("none", "semantic", "semantic_color")
@@ -84,7 +83,7 @@ class SemanticColorGenerator(SemanticContourGenerator):
                 raise ValueError("Semantic override must match current TIR coordinates")
             scores = p.cpu().numpy()
         color = self.color_prior(p)
-        edges = np.stack([make_structure_semantic_condition(image, score)
+        edges = np.stack([self.contour_from_probabilities(image, score)
                           for image, score in zip(gray, scores)])
         edge = torch.from_numpy(edges[:, None]).to(tir)
         base = torch.cat((tir, edge, torch.zeros_like(tir)), 1)

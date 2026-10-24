@@ -68,7 +68,7 @@ def read_cache(path, expected_gray):
     return gray, probabilities
 
 
-def preflight(args):
+def preflight(args, *, replay_probabilities=None):
     review, selected, targets = load_review(args)
     source = args.semantic_preview_dir
     manifest_path = source / "preview_manifest.json"
@@ -83,14 +83,21 @@ def preflight(args):
         raise ValueError("Semantic preview belongs to a different fixed review")
     if manifest["protocol_manifest_sha256"] != sha256_file(args.protocol_manifest):
         raise ValueError("Semantic preview belongs to a different data protocol")
+    changed_code = {}
     for relative, digest in manifest["code_hashes"].items():
         path = (ROOT / relative).resolve()
-        if not path.is_relative_to(ROOT) or sha256_file(path) != digest:
+        if not path.is_relative_to(ROOT):
+            raise ValueError(f"Unsafe semantic inference source: {relative}")
+        current = sha256_file(path)
+        if current != digest:
+            changed_code[relative] = dict(cached=digest, current=current)
+        if current != digest and replay_probabilities is None:
             raise ValueError(f"Original semantic inference code changed: {relative}")
     frames = {row["filename"]: row for row in manifest["frames"]}
     if len(frames) != len(manifest["frames"]):
         raise ValueError("Duplicate semantic cache source images")
     cache_paths, cache_hashes = {}, {}
+    replay_max_error = 0.
     for row in selected:
         name = row["filename"]
         frame = frames.get(name)
@@ -102,9 +109,20 @@ def preflight(args):
         path = source / "maps" / f"{prefix}_responses.npz"
         with Image.open(args.input_dir / name) as image:
             expected_gray = np.asarray(image).copy()
-        read_cache(path, expected_gray)
+        _, cached = read_cache(path, expected_gray)
+        if changed_code:
+            # Opt-in migration requires replay of EVERY selected original view;
+            # source identity, coordinates, taxonomy and cache checks still apply.
+            current = replay_probabilities(expected_gray)
+            np.testing.assert_allclose(current, cached, atol=2e-5, rtol=1e-4,
+                                       err_msg=f"Current semantic inference differs for {name}")
+            replay_max_error = max(replay_max_error, float(np.max(np.abs(current - cached))))
         cache_paths[name] = path
         cache_hashes[name] = sha256_file(path)
+    if changed_code:
+        manifest = dict(manifest, cache_revalidation=dict(changed_code=changed_code,
+            replayed_images=len(selected), max_absolute_error=replay_max_error,
+            absolute_tolerance=2e-5, relative_tolerance=1e-4))
     return manifest, selected, targets, cache_paths, cache_hashes
 
 

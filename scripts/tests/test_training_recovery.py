@@ -88,12 +88,18 @@ class RecoveryTests(unittest.TestCase):
             self.assertFalse((root/'runs/tmp').exists())
 
     def test_active_process_changed_schedule_and_bad_weights_block_relaunch(self):
-        for failure in ('active','schedule','nonfinite','missing','finished'):
+        for failure in ('active','schedule','nonfinite','missing','finished','contour','clarity','recall'):
             with self.subTest(failure=failure),tempfile.TemporaryDirectory() as tmp:
                 root=Path(tmp); name,folder,data,argv=self.fixture(root)
                 active=[123] if failure=='active' else []
                 if failure=='schedule':
                     argv[argv.index('--decay-epochs')+1]='1'
+                if failure=='contour':
+                    argv+=['--contour-variant','selective_v1']
+                if failure=='clarity':
+                    argv+=['--contour-variant','clarity_v1']
+                if failure=='recall':
+                    argv+=['--contour-variant','recall_v1']
                 if failure=='nonfinite':
                     torch.save({'weight':torch.tensor(float('nan'))},folder/'latest_net_D_B.pth')
                 if failure=='missing': (folder/'latest_net_D_B.pth').unlink()

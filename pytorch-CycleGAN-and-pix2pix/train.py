@@ -98,6 +98,8 @@ if __name__ == "__main__":
                 t_comp = (time.time() - iter_start_time) / opt.batch_size
                 visualizer.print_current_losses(epoch, epoch_iter, losses, t_comp, t_data)
                 visualizer.plot_current_losses(total_iters, losses)
+                if hasattr(model, "save_guidance_diagnostics"):
+                    model.save_guidance_diagnostics(epoch, total_iters)
 
             if total_iters % opt.save_latest_freq == 0:  # cache our latest model every <save_latest_freq> iterations
                 print(f"saving the latest model (epoch {epoch}, total_iters {total_iters})")

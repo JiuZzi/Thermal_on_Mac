@@ -8,6 +8,7 @@ import torch.distributed as dist
 
 from .conditioned_cycle_gan_model import ConditionedCycleGANModel
 from .semantic_contour import DEFAULT_CHECKPOINT, SemanticContourGenerator
+from .selective_semantic_edges import VARIANTS
 
 
 class SemanticContourCycleGANModel(ConditionedCycleGANModel):
@@ -19,6 +20,8 @@ class SemanticContourCycleGANModel(ConditionedCycleGANModel):
             parser.set_defaults(lambda_identity=0, n_epochs=40, n_epochs_decay=40, seed=42)
         parser.add_argument("--semantic_checkpoint", type=str, default=str(DEFAULT_CHECKPOINT),
                             help="Complete frozen FMB SegFormer-B3 best_model.pth; required in training and testing")
+        parser.add_argument("--contour_variant", choices=VARIANTS, default="joint512",
+                            help="Keep joint512 for existing experiments; selective_v1/clarity_v1/recall_v1 are separate candidates")
         return parser
 
     def __init__(self, opt):
@@ -27,6 +30,7 @@ class SemanticContourCycleGANModel(ConditionedCycleGANModel):
         super().__init__(opt)
         self.netG_A = SemanticContourGenerator(
             self.netG_A.backbone, opt.semantic_checkpoint,
+            contour_variant=getattr(opt, "contour_variant", "joint512"),
             edge_sigma=opt.edge_sigma, edge_low_threshold=opt.edge_low_threshold,
             edge_high_threshold=opt.edge_high_threshold, edge_soft_width=opt.edge_soft_width,
             soft_high_thresholds=opt.soft_high_thresholds,
@@ -45,7 +49,7 @@ class SemanticContourCycleGANModel(ConditionedCycleGANModel):
     def setup(self, opt):
         super().setup(opt)
         generator = self.netG_A.module if hasattr(self.netG_A, "module") else self.netG_A
-        print("Second channel: joint512; frozen SegFormer-B3 at 512; third channel: zero")
+        print(f"Second channel: {generator.semantic_metadata.get('contour_variant', 'joint512')}; frozen SegFormer-B3 at 512; third channel: zero")
         print("Semantic checkpoint SHA256:", generator.semantic_metadata["checkpoint_sha256"])
         if not dist.is_initialized() or dist.get_rank() == 0:
             path = self.save_dir / ("semantic_train.json" if self.isTrain else "semantic_test.json")

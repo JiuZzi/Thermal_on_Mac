@@ -43,6 +43,7 @@ class SemanticColorCycleGANModel(SemanticContourCycleGANModel):
         self.netG_A = SemanticColorGenerator(
             self.netG_A.backbone, opt.semantic_checkpoint,
             color_condition=opt.color_condition, color_width=opt.color_width,
+            contour_variant=getattr(opt, "contour_variant", "joint512"),
             edge_sigma=opt.edge_sigma, edge_low_threshold=opt.edge_low_threshold,
             edge_high_threshold=opt.edge_high_threshold, edge_soft_width=opt.edge_soft_width,
             soft_high_thresholds=opt.soft_high_thresholds, saliency_sigmas=opt.saliency_sigmas,

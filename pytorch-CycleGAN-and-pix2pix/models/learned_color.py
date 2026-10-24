@@ -9,7 +9,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from .learned_color_prior import LearnedChromaPrior, semantic_reliability
-from .semantic_edges import FMB_CLASS_NAMES, make_structure_semantic_condition
+from .semantic_edges import FMB_CLASS_NAMES
 
 
 class LearnedColorGenerator(nn.Module):
@@ -112,7 +112,7 @@ class LearnedColorGenerator(nn.Module):
             gate = gate * (torch.rand((tir.shape[0], 1, 1, 1), device=tir.device) >= self.dropout)
         if self.feature_override == "off":
             gate = torch.zeros_like(gate)
-        edge = torch.from_numpy(np.stack([make_structure_semantic_condition(image, score)
+        edge = torch.from_numpy(np.stack([self.semantic.contour_from_probabilities(image, score)
                                          for image, score in zip(gray, scores)])[:, None]).to(tir)
         raw_semantic = self.semantic.condition_encoder(torch.cat((p, torch.zeros_like(p[:, :6])), 1).to(tir))
         learned = self.learned_encoder(tokens)
@@ -129,5 +129,6 @@ class LearnedColorGenerator(nn.Module):
                 local = self.learned_projections[key](local)
                 local = local * F.interpolate(gate, size=rgb.shape[-2:], mode="bilinear", align_corners=False)
                 rgb = rgb + sem + local
-        aux = dict(edge=edge, probabilities=p, quality=quality, color=color)
+        aux = dict(edge=edge, probabilities=p, quality=quality, color=color,
+                   feature_gate=gate.detach())
         return (rgb, aux) if return_aux else rgb
