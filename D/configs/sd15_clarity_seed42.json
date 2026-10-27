@@ -1,0 +1,18 @@
+{
+  "format": "thermal_D_preview_v1",
+  "base_model": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+  "base_revision": "451f4fe16113bff5a5d2269ed5ad43b0592e9a14",
+  "control_model": "lllyasviel/control_v11p_sd15_canny",
+  "control_revision": "115a470d547982438f70198e353a921996e2e819",
+  "seed": 42,
+  "width": 640,
+  "height": 512,
+  "steps": 30,
+  "strength": 0.6,
+  "guidance_scale": 7.5,
+  "control_scale": 1.0,
+  "prompt": "a realistic color photograph of a street scene, natural colors, realistic lighting",
+  "negative_prompt": "painting, illustration, cartoon, oversaturated colors, color banding",
+  "scheduler": "DDIM",
+  "eta": 0.0
+}
