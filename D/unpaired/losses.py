@@ -20,7 +20,10 @@ def edge_preservation(generated, tir01, edge):
     gx, gy = gradients(gray); tx, ty = gradients(tir01.float())
     magnitude = (gx.square() + gy.square() + 1e-8).sqrt()
     local = F.avg_pool2d(gray.square(), 9, 1, 4) - F.avg_pool2d(gray, 9, 1, 4).square()
-    response = 1 - torch.exp(-magnitude / (local.clamp_min(0).sqrt() + .02))
+    # sqrt(0) has an infinite derivative. Even an unselected/zero-weighted
+    # flat pixel then yields 0*inf=NaN in backward. Floor BEFORE sqrt.
+    deviation = local.clamp_min(1e-8).sqrt()
+    response = 1 - torch.exp(-magnitude / (deviation + .02))
     support = F.max_pool2d(response, 3, 1, 1)
     # Polarity invariance: thermal and visible-light contrast may be inverted.
     dot = (gx * tx + gy * ty).abs()

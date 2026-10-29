@@ -55,6 +55,21 @@ class LossAndProtocolTests(unittest.TestCase):
         self.assertLess(float(normal),float(wrong))
         wrong.backward(); self.assertTrue(torch.isfinite(bad.grad).all())
 
+    def test_flat_and_saturated_regions_have_finite_edge_gradients(self):
+        source = torch.linspace(0,1,64)[None,None,None,:].expand(1,1,64,64)
+        edge = torch.zeros_like(source); edge[:,:,:,30:33] = .8
+        for value in (-1., 0., 1.):
+            for support in (edge, edge*0):
+                with self.subTest(value=value, empty=not bool(support.any())):
+                    generated = torch.full((1,3,64,64), value, requires_grad=True)
+                    loss = edge_preservation(generated,source,support)
+                    loss.backward()
+                    self.assertTrue(torch.isfinite(loss))
+                    self.assertTrue(torch.isfinite(generated.grad).all())
+                    if not support.any():
+                        self.assertEqual(float(loss),0.)
+                        self.assertEqual(float(generated.grad.abs().sum()),0.)
+
     def test_semantic_loss_empty_mask_is_zero_and_color_regularizer_is_finite(self):
         x,p,q = conditions()
         logits = torch.zeros_like(p, requires_grad=True)

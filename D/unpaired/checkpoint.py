@@ -3,6 +3,10 @@
 from pathlib import Path
 import tempfile
 import random
+import re
+import shutil
+import time
+import warnings
 
 import numpy as np
 
@@ -12,26 +16,91 @@ from safetensors.torch import save_file, load_file
 from D.common import sha256, read_json, write_json
 
 
-def save(folder, step, engine, streams):
-    target = folder / "checkpoints" / f"step_{step:06d}"
-    target.parent.mkdir(exist_ok=True)
+def capture_rng():
+    nr = np.random.get_state()
+    return dict(cpu_rng=torch.get_rng_state(),
+                cuda_rng=torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+                python_rng=random.getstate(),
+                numpy_rng=dict(name=nr[0], keys=torch.tensor(nr[1].astype(np.int64)), position=nr[2],
+                               has_gauss=nr[3], cached_gauss=nr[4]))
+
+
+def restore_rng(state):
+    torch.set_rng_state(state["cpu_rng"])
+    if state["cuda_rng"] is not None:
+        torch.cuda.set_rng_state(state["cuda_rng"])
+    random.setstate(state["python_rng"])
+    nr = state["numpy_rng"]
+    np.random.set_state((nr["name"], nr["keys"].numpy().astype(np.uint32), nr["position"], nr["has_gauss"], nr["cached_gauss"]))
+
+
+def _finite_state(values):
+    result = {k:v.detach().cpu().contiguous() for k,v in values.items()}
+    if any(not torch.isfinite(v).all() for v in result.values()):
+        raise ValueError("Refuse to checkpoint nonfinite model weights")
+    return result
+
+
+def _prune_recovery(folder, keep=2):
+    # This is the ONLY deletion performed here. Never prune archival epochs.
+    root = folder / "recovery"
+    if root.is_symlink() or root.resolve().parent != folder.resolve():
+        raise ValueError("Unsafe recovery directory")
+    candidates = [p for p in root.iterdir() if p.is_dir() and re.fullmatch(r"step_\d+_\d+", p.name)]
+    latest = (folder / read_json(folder / "latest.json")["checkpoint"]).resolve()
+    # Protect the committed pointer even with coarse timestamps or clock changes.
+    candidates.sort(key=lambda p:(p.resolve()==latest, *map(int,p.name.split("_")[1:])), reverse=True)
+    for path in candidates[keep:]:
+        if path.is_symlink() or path.resolve().parent != root.resolve():
+            raise ValueError("Refuse to prune outside this run's recovery directory")
+        shutil.rmtree(path.resolve())
+
+
+def save(folder, step, engine, streams, *, kind="archive", metadata=None):
+    directories = dict(archive="checkpoints", recovery="recovery", emergency="emergency")
+    if kind not in directories:
+        raise ValueError("Unknown checkpoint kind")
+    name = f"step_{step:06d}" + (f"_{time.time_ns()}" if kind != "archive" else "")
+    target = folder / directories[kind] / name
+    target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         raise ValueError("Preserve existing checkpoint")
     pending = Path(tempfile.mkdtemp(prefix=f".step_{step:06d}_", dir=target.parent))
-    save_file(engine.generator.export_state(), str(pending / "generator.safetensors"))
-    save_file({k:v.detach().cpu().contiguous() for k,v in engine.reverse.state_dict().items()}, str(pending / "reverse.safetensors"))
-    save_file({k:v.detach().cpu().contiguous() for k,v in engine.critics.state_dict().items()}, str(pending / "critics.safetensors"))
-    numpy_rng = np.random.get_state()
+    save_file(_finite_state(engine.generator.export_state()), str(pending / "generator.safetensors"))
+    save_file(_finite_state(engine.reverse.state_dict()), str(pending / "reverse.safetensors"))
+    save_file(_finite_state(engine.critics.state_dict()), str(pending / "critics.safetensors"))
     torch.save(dict(step=step, engine=engine.state(), streams={k:v.state() for k,v in streams.items()},
-                    cpu_rng=torch.get_rng_state(), cuda_rng=torch.cuda.get_rng_state(), python_rng=random.getstate(),
-                    numpy_rng=dict(name=numpy_rng[0], keys=torch.tensor(numpy_rng[1].astype(np.int64)),
-                                   position=numpy_rng[2], has_gauss=numpy_rng[3], cached_gauss=numpy_rng[4])), pending / "training.pt")
+                    **capture_rng()), pending / "training.pt")
     files = {p.name:sha256(p) for p in pending.iterdir()}
     write_json(pending / "checkpoint.json", dict(format="D_unpaired_checkpoint_v1", step=step,
-               run_sha256=sha256(folder / "run.json"), files=files))
+               run_sha256=sha256(folder / "run.json"), files=files, kind=kind, metadata=metadata))
     pending.rename(target)
     write_json(folder / "latest.json", dict(step=step, checkpoint=target.relative_to(folder).as_posix()))
+    if kind == "recovery":
+        try:
+            _prune_recovery(folder)
+        except OSError as error:
+            warnings.warn(f"Recovery saved; old snapshot cleanup deferred: {error}")
     return target
+
+
+def locate(folder, step=None):
+    if step is None:
+        latest = read_json(folder / "latest.json")
+        path = folder / latest["checkpoint"]
+        if not path.resolve().is_relative_to(folder.resolve()):
+            raise ValueError("Checkpoint pointer leaves this run")
+        if read_json(path / "checkpoint.json")["step"] != latest["step"]:
+            raise ValueError("Checkpoint pointer update count mismatch")
+        return path, latest["step"]
+    archive = folder / "checkpoints" / f"step_{step:06d}"
+    if archive.is_dir():
+        return archive, step
+    candidates = [p for kind in ("recovery", "emergency")
+                  for p in (folder / kind).glob(f"step_{step:06d}_*") if p.is_dir()]
+    if not candidates:
+        raise FileNotFoundError(f"No complete checkpoint for update {step}")
+    return max(candidates, key=lambda p:p.stat().st_mtime_ns), step
 
 
 def verify(folder, checkpoint):
@@ -57,9 +126,5 @@ def restore(folder, checkpoint, engine, streams):
     engine.restore(state["engine"])
     for key, stream in streams.items():
         stream.restore(state["streams"][key])
-    torch.set_rng_state(state["cpu_rng"])
-    torch.cuda.set_rng_state(state["cuda_rng"])
-    random.setstate(state["python_rng"])
-    nr = state["numpy_rng"]
-    np.random.set_state((nr["name"],nr["keys"].numpy().astype(np.uint32),nr["position"],nr["has_gauss"],nr["cached_gauss"]))
+    restore_rng(state)
     return state["step"]

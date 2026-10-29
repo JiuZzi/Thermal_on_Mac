@@ -12,7 +12,7 @@ from D.models import load_pipeline
 from .protocol import DEFAULT_DATA, DEFAULT_PRIOR, model_config, seed_runtime
 from .data import ConditionDataset
 from .model import FormalGenerator
-from .checkpoint import verify
+from .checkpoint import verify, locate
 from .report import preview
 
 
@@ -32,8 +32,7 @@ def main():
     run = read_json(args.run_dir / "run.json")
     if run.get("format") != "D_unpaired_run_v1" or sha256(args.prior) != run["prior_sha256"]:
         parser.error("Use a formal D run and its original color-prior JSON")
-    step = args.step if args.step is not None else read_json(args.run_dir / "latest.json")["step"]
-    checkpoint = args.run_dir / "checkpoints" / f"step_{step:06d}"
+    checkpoint, step = locate(args.run_dir, args.step)
     header = verify(args.run_dir, checkpoint)
     dataset = ConditionDataset(args.data_cache, "TIR", args.phase)
     if dataset.manifest["identity"] != run["data"]["source"]:
