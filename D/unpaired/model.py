@@ -211,6 +211,9 @@ class FormalGenerator(nn.Module):
                     predicted = unconditional + self.config["guidance_scale"] * (predicted - unconditional)
                 latent = self.scheduler.step(predicted, timestep, latent, eta=0., return_dict=False)[0]
             result = self.vae.decode(latent / self.vae.config.scaling_factor).sample
+        # Clamping must not hide +/-inf from a failed low-precision decode.
+        if not torch.isfinite(result).all():
+            raise FloatingPointError("Nonfinite VAE decoder output before RGB clamping")
         if result.shape != (x.shape[0], 3, *x.shape[-2:]):
             raise ValueError("Generated RGB geometry changed")
         return result.float().clamp(-1, 1)
