@@ -15,12 +15,21 @@ class ConditionDataset:
     def __init__(self, folder, domain, role):
         self.folder = Path(folder)
         self.manifest = read_json(self.folder / "manifest.json")
+        status = read_json(self.folder / "status.json")
         if (self.manifest.get("format") != "D_unpaired_conditions_v1" or
-            read_json(self.folder / "status.json").get("phase") != "completed"):
+            status.get("phase") != "completed"):
             raise ValueError("Prepare completed formal-D conditions first")
+        if domain not in ("TIR", "RGB") or role not in ("train", "val", "test"):
+            raise ValueError("Unknown condition domain/role")
+        for key in ("completed", "total"):
+            if key in status and status[key] != len(self.manifest["frames"]):
+                raise ValueError("Condition status/frame count mismatch")
         self.frames = [r for r in self.manifest["frames"] if r["domain"] == domain and r["role"] == role]
         if not self.frames:
             raise ValueError(f"Missing {domain} {role} conditions; no fallback to another split")
+        for key in ("id", "stem"):
+            if len({r[key] for r in self.frames}) != len(self.frames):
+                raise ValueError(f"Duplicate {key} would overwrite condition or preview output")
 
     def __len__(self):
         return len(self.frames)

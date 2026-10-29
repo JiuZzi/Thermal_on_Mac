@@ -118,10 +118,12 @@ class ConditionBuilder:
 
     def synthetic(self, tir):
         """Conditions are detached as before; raw synthetic TIR retains its graph."""
-        values = np.rint(np.clip((tir.detach().float().cpu().numpy()[0, 0] + 1) / 2, 0, 1) * 255).astype(np.uint8)
-        image = np.repeat(values[:, :, None], 3, axis=2)
-        _, edge, p, q = self.compute(image, "TIR")
+        if tir.ndim != 4 or tir.shape[0] < 1 or tir.shape[1] != 1 or not torch.isfinite(tir).all():
+            raise ValueError("Expected a finite synthetic TIR batch [N,1,H,W]")
+        values = np.rint(np.clip((tir.detach().float().cpu().numpy()[:, 0] + 1) / 2, 0, 1) * 255).astype(np.uint8)
+        computed = [self.compute(np.repeat(image[:, :, None], 3, axis=2), "TIR") for image in values]
+        edge, p, q = (np.stack([item[index] for item in computed]) for index in (1, 2, 3))
         device = tir.device
-        e = torch.from_numpy(edge)[None, None].to(device)
+        e = torch.from_numpy(edge)[:, None].to(device)
         return torch.cat(((tir.float() + 1) / 2, e, torch.zeros_like(e)), 1), \
-               torch.from_numpy(p)[None].to(device), torch.from_numpy(q)[None, None].to(device)
+               torch.from_numpy(p).to(device), torch.from_numpy(q)[:, None].to(device)

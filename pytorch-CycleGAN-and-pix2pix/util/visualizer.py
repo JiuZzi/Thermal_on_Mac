@@ -4,7 +4,10 @@ import ntpath
 import time
 from . import util, html
 from pathlib import Path
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 import os
 import torch.distributed as dist
 
@@ -63,6 +66,8 @@ class Visualizer:
 
         # Initialize wandb if enabled
         if self.use_wandb:
+            if wandb is None:
+                raise RuntimeError("--use_wandb requires the optional wandb package")
             # Only initialize wandb on main process (rank 0)
             if not dist.is_initialized() or dist.get_rank() == 0:
                 self.wandb_project_name = getattr(opt, "wandb_project_name", "CycleGAN-and-pix2pix")

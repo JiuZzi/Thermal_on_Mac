@@ -37,6 +37,11 @@ class UnpairedEngine:
         self.rgb_pool, self.tir_pool = ReplayPool(config["pool_size"]), ReplayPool(config["pool_size"])
         self.overflow_count = 0
 
+    @staticmethod
+    def _gradient_norm(parameters):
+        values = [p.grad.detach().float().norm() for p in parameters if p.grad is not None]
+        return torch.stack(values).norm() if values else None
+
     def _rates(self, step, total):
         warm = min((step+1) / max(self.config["warmup_steps"], 1), 1.)
         decay = min(1., max(0., (total-step) / max(total-total//2, 1)))
@@ -47,6 +52,7 @@ class UnpairedEngine:
 
     def update(self, tir, rgb, step, total, *, diagnostics=False):
         g, reverse, critics = self.generator, self.reverse, self.critics
+        g.fusion.collect_diagnostics = diagnostics
         weights = self.config["loss_weights"]
         g.train(); reverse.train(); critics.requires_grad_(False)
         self._rates(step, total)
@@ -54,6 +60,10 @@ class UnpairedEngine:
         losses = {}
         # First graph: TIR -> RGB -> reconstructed TIR.
         fake_rgb = g(tir["x"], tir["p"], tir["q"], generator=self.noise_rng)
+        if diagnostics:
+            losses.update(g.fusion.diagnostics)
+            losses.update(g.output_diagnostics)
+            losses["rgb_replay_active"] = int(bool(weights["rgb_replay"]) and (step+1) % self.config["replay_every"] == 0)
         real_tir = tir["x"][:, :1] * 2 - 1
         terms = dict(adversarial_rgb=lsgan(critics["RGB"](fake_rgb), True))
         if weights["cycle_tir"]:
@@ -70,10 +80,17 @@ class UnpairedEngine:
                                                min_quality=self.config.get("color_min_quality", .5))
             losses["color_coverage"] = coverage.detach()
         if weights["chroma_smooth"]:
-            terms["chroma_smooth"] = chroma_smoothness(fake_rgb, tir["x"][:,1:2], tir["p"])
+            quality = tir["q"] if self.config.get("chroma_smooth_policy", "legacy") == "quality_soft" else None
+            terms["chroma_smooth"] = chroma_smoothness(fake_rgb, tir["x"][:,1:2], tir["p"], quality,
+                                                      minimum=self.config["semantic_min_quality"])
         color_ramp = min((step+1) / max(1,self.config["color_warmup_steps"]), 1.)
         loss = sum(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
                    (color_ramp if key == "color_prior" else 1.) for key,value in terms.items())
+        losses["G_total"] = loss.detach()
+        if diagnostics:
+            losses.update({f"weighted_{key}":(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
+                           (color_ramp if key == "color_prior" else 1.)).detach() for key,value in terms.items()})
+            losses["color_weight"] = weights["color_prior"] * color_ramp
         self.scaler.scale(loss).backward()
         losses.update({key:value.detach() for key,value in terms.items()})
         saved_rgb = fake_rgb.detach()
@@ -88,6 +105,10 @@ class UnpairedEngine:
             terms["cycle_rgb"] = F.l1_loss(reconstructed, rgb["rgb"])
         loss = sum(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key])
                    for key,value in terms.items())
+        losses["G_total"] = losses["G_total"] + loss.detach()
+        if diagnostics:
+            losses.update({f"weighted_{key}":(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key])).detach()
+                           for key,value in terms.items()})
         self.scaler.scale(loss).backward()
         losses.update({key:value.detach() for key,value in terms.items()})
         saved_tir = fake_tir.detach()
@@ -98,11 +119,18 @@ class UnpairedEngine:
         # Replay has its own graph; it never uses a randomly paired RGB target.
         if weights["rgb_replay"] and (step+1) % self.config["replay_every"] == 0:
             replay = g.replay_loss(rgb["rgb"], rgb["x"], rgb["p"], rgb["q"], self.noise_rng)
+            losses["G_total"] = losses["G_total"] + weights["rgb_replay"] * replay.detach()
+            if diagnostics:
+                losses["weighted_rgb_replay"] = weights["rgb_replay"] * replay.detach()
             self.scaler.scale(weights["rgb_replay"] * replay).backward()
             losses["rgb_replay"] = replay.detach()
             del replay
         self.scaler.unscale_(self.opt_g)
         if diagnostics:
+            for name, parameters in (("diffusion", g.parameters()), ("reverse", reverse.parameters())):
+                value = self._gradient_norm(parameters)
+                if value is not None:
+                    losses[f"grad_norm_{name}"] = value
             conv = g.controlnet.controlnet_cond_embedding.conv_in
             if conv.weight.grad is not None:
                 for channel,name in enumerate(("TIR", "E", "C_zero")):

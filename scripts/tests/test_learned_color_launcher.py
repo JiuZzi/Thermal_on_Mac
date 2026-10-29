@@ -15,6 +15,38 @@ from options.train_options import TrainOptions
 
 
 class LauncherTests(unittest.TestCase):
+    def test_cpu_export_uses_imported_weights_and_explicit_preview_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); semantic=root/'semantic.pth'; semantic.write_text('not loaded')
+            manifest=dict(dataset_id='independent',domains={'A':[], 'B':[dict(split='val') for _ in range(7)]})
+            weights=root/'downloaded/checkpoints'
+            argv=['run_learned_color.py','--test-only','--data-manifest',str(root/'data.json'),
+                  '--prior',str(root/'prior.json'),'--semantic-checkpoint',str(semantic),
+                  '--name','cpu_export','--phase','val','--epoch','80','--color-loss-weight','0',
+                  '--device','cpu','--checkpoints-dir',str(weights),'--limit','3',
+                  '--results-dir',str(root/'previews')]
+            captured=[]
+            with patch.object(sys,'argv',argv), \
+                 patch('data.grouped_unaligned_dataset.validate_manifest',return_value=(manifest,root)), \
+                 patch('data.grouped_unaligned_dataset.validate_prior_partitions'), \
+                 patch('models.learned_color_prior.read_bank',return_value=({'classes':{'sky':{'status':'supported'}}},'ab'*32)), \
+                 patch('torch.cuda.is_available',return_value=False), \
+                 patch.object(run_learned_color.subprocess,'run',side_effect=lambda command,**kw:captured.append(command)):
+                run_learned_color.main()
+            with patch.object(sys,'argv',['test.py',*captured[0][3:]]):
+                options=TestOptions().gather_options()
+            self.assertEqual(options.device,'cpu')
+            self.assertEqual(options.checkpoints_dir,str(weights.resolve()))
+            self.assertEqual(options.num_test,3)
+            self.assertEqual(options.epoch,'80')
+
+    def test_explicit_cpu_initialization_does_not_touch_available_cuda(self):
+        import torch
+        from models.networks import init_net
+        with patch('torch.cuda.is_available',return_value=True):
+            net=init_net(torch.nn.Conv2d(1,2,3),device=torch.device('cpu'))
+        self.assertEqual(next(net.parameters()).device.type,'cpu')
+
     def test_validation_export_counts_manifest_tir_and_parses_test_options(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); semantic=root/'semantic.pth'; semantic.write_text('not loaded')

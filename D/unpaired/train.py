@@ -20,6 +20,7 @@ from .data import ConditionDataset, data_identity, on_device
 from .model import FormalGenerator
 from .engine import UnpairedEngine, auxiliary_networks
 from . import checkpoint as checkpoints
+from .progress import TrainingLog, TrainingTimer, cuda_memory_snapshot, duration, event
 
 
 def resolve_rgb_init(path):
@@ -38,7 +39,7 @@ def resolve_rgb_init(path):
 
 def source_hashes():
     names = ("__init__.py", "protocol.py", "model.py", "losses.py", "data.py", "semantics.py",
-             "engine.py", "checkpoint.py", "report.py", "train.py")
+             "engine.py", "checkpoint.py", "report.py", "train.py", "progress.py")
     paths = [*[ROOT / "D/unpaired" / name for name in names], ROOT / "D/common.py",
              ROOT / "D/models.py", ROOT / "D/adaptation.py", ROOT / "D/prepare_rgb.py"]
     paths += [ROOT / name for name in (*EDGE_SOURCES,
@@ -61,6 +62,10 @@ def execute(args):
     recipe = data["source"]["recipe"]
     if recipe["size"] != [config["width"], config["height"]] or recipe["flip_reliability"] != config["flip_reliability"]:
         raise ValueError("Cache geometry/reliability differs from the model config")
+    if config["format"] == "D_unpaired_v2":
+        from .prepare import condition_pipeline_identity
+        if recipe.get("condition_pipeline") != condition_pipeline_identity():
+            raise ValueError("D-v2 needs a cache prepared with this P/E/Q pipeline and environment; use a new cache directory")
     if sha256(args.semantic_checkpoint) != recipe["tir_semantic_sha256"]:
         raise ValueError("Use the same FMB weights as condition preparation")
     if sha256(args.data_manifest) != data["source"]["source_manifest_sha256"]:
@@ -95,8 +100,12 @@ def execute(args):
                     limits="Unpaired research model; no guarantee of true RGB colors or exact geometry; "
                            "seed42; unsupported deterministic CUDA kernels warn; pretrained RGB data is an extra prior")
     if args.check_only:
-        print(dict(TIR_train=len(tir_data), RGB_train=len(rgb_data), config=config,
-                   initialization=initialization, input="TIR,E,0", data_valid=True))
+        event("CHECK", f"passed | TIR={len(tir_data)} RGB={len(rgb_data)} | input=[TIR,E,0]")
+        event("CONFIG", f"{config['format']} | {config['width']}x{config['height']} | seed=42"
+              f" | DDIM={int(config['sampling_steps']*config['strength'])} actual steps | target={args.steps} updates")
+        event("INIT", initialization["kind"])
+        if getattr(args, "log_details", False):
+            event("DETAIL", json.dumps(dict(config=config, initialization=initialization), ensure_ascii=True))
         return
     if not torch.cuda.is_available():
         raise ValueError("CUDA required")
@@ -109,12 +118,15 @@ def execute(args):
         folder.mkdir(parents=True)
         write_json(folder / "run.json", identity)
     from filelock import FileLock
-    with FileLock(str(folder / "training.lock"), timeout=0):
+    with FileLock(str(folder / "training.lock"), timeout=0), \
+         TrainingLog(folder, details=getattr(args, "log_details", False)) as log:
+        log.event("RUN", f"{args.name} | {'resume' if args.resume else 'new run'} | {config['format']} | seed=42")
+        log.event("FILES", f"readable: {folder / 'train.log'} | full metrics: {folder / 'loss.jsonl'}")
         seed_runtime()
         latest = folder / "latest.json"
         formal_init = args.init_tir_checkpoint
         if args.resume and not latest.exists():
-            print("No completed update checkpoint; restarting recorded initialization", flush=True)
+            log.event("RESUME", "No complete checkpoint; restarting the recorded initialization")
             if initialization["kind"] == "RGB E-only conversion":
                 rgb_init = ROOT / initialization["checkpoint"].replace("\\", "/")
                 if (resolve_rgb_init(rgb_init) != rgb_init.resolve() or
@@ -125,6 +137,7 @@ def execute(args):
                 original = checkpoints.verify(formal_init.parent.parent, formal_init)
                 if original["files"] != initialization["files"]:
                     raise ValueError("Recorded formal initialization changed")
+        log.event("LOAD", "Loading diffusion weights and frozen semantic models...")
         pipeline = load_pipeline(model_config(config), args.cache_dir, offline=True)
         generator = FormalGenerator(pipeline, config, args.prior, recipe,
                                     rgb_init=rgb_init if not args.resume or not latest.exists() else None).to("cuda:0")
@@ -145,42 +158,49 @@ def execute(args):
         step = checkpoints.restore(folder, folder / read_json(latest)["checkpoint"], engine, streams) \
                if args.resume and latest.exists() else 0
         trainable = sum(p.numel() for p in generator.parameters() if p.requires_grad)
-        print(dict(TIR=len(tir_data), RGB=len(rgb_data), start_update=step, target_updates=args.steps,
-                   trainable_diffusion=trainable, gpu=torch.cuda.get_device_name(0),
-                   actual_denoise_steps=int(config["sampling_steps"]*config["strength"])), flush=True)
+        log.event("MODEL", f"{torch.cuda.get_device_name(0)} | trainable diffusion={trainable:,}"
+                  f" | DDIM={int(config['sampling_steps']*config['strength'])} actual steps")
+        log.event("VRAM", f"total={torch.cuda.get_device_properties(0).total_memory/1024**3:.2f}GiB"
+                  " | peak=tensor peak; resv=allocator reservation; free=current device-wide free")
+        log.event("DATA", f"TIR={len(tir_data)} RGB={len(rgb_data)} | start={step} target={args.steps} updates")
+        log.event("METRICS", "G is weighted total; cycle/AUX are raw losses at the logged update; replay=off means not scheduled")
         baseline = folder / "previews/step_000000"
         from .report import preview
         if val_data is not None and step == 0:
             preview(generator, val_data, baseline, resume=baseline.exists(),
-                    metadata=dict(run_sha256=sha256(folder / "run.json"), step=0))
-        started = time.perf_counter()
+                    metadata=dict(run_sha256=sha256(folder / "run.json"), step=0), log=log)
+        start_step = step
+        timer = TrainingTimer(start_step, args.steps)
         while step < args.steps:
             tir = on_device(tir_data[streams["TIR"].next()], "cuda:0")
             rgb = on_device(rgb_data[streams["RGB"].next()], "cuda:0")
-            logging = (step+1) % args.log_every == 0 or step+1 == args.steps
+            logging = step == start_step or (step+1) % args.log_every == 0 or step+1 == args.steps
             applied, values = engine.update(tir, rgb, step, args.steps, diagnostics=logging)
             if not applied:
-                print(values, flush=True)
+                log.event("WARN", f"Update {step+1} not applied: nonfinite gradients"
+                          f" (consecutive skips={values.get('amp_overflow', '?')}); update counter unchanged")
                 continue
             step += 1
             write_json(folder / "status.json", dict(phase="training", step=step, total=args.steps))
             if logging:
                 row = {key:float(value) if torch.is_tensor(value) else value for key,value in values.items()}
-                row.update(step=step, epoch_equivalent=step/max(len(tir_data),len(rgb_data)),
-                           elapsed=time.perf_counter()-started, peak_allocated_gib=torch.cuda.max_memory_allocated()/1024**3,
+                row.update(timer.snapshot(step))
+                row.update(cuda_memory_snapshot())
+                row.update(step=step, total_steps=args.steps, epoch_equivalent=step/max(len(tir_data),len(rgb_data)),
                            lr_diffusion=engine.opt_g.param_groups[0]["lr"])
-                with (folder / "loss.jsonl").open("a",encoding="utf-8") as handle:
-                    handle.write(json.dumps(row)+"\n")
-                print(row, flush=True)
+                log.metrics(row)
             if step % args.save_every == 0 or step == args.steps:
+                saving_started = time.perf_counter()
+                log.event("SAVE", f"Writing complete checkpoint at update {step}...")
                 saved = checkpoints.save(folder, step, engine, streams)
-                print(f"Saved {saved}",flush=True)
+                log.event("SAVED", f"{saved} | {duration(time.perf_counter()-saving_started)}")
             if val_data is not None and (step % args.preview_every == 0 or step == args.steps):
                 preview(generator, val_data, folder / "previews" / f"step_{step:06d}",
                         baseline=baseline if (baseline / "status.json").is_file() else None,
-                        metadata=dict(run_sha256=sha256(folder / "run.json"), step=step))
+                        metadata=dict(run_sha256=sha256(folder / "run.json"), step=step), log=log)
         write_json(folder / "status.json", dict(phase="completed", step=step, total=args.steps))
-        print(folder / "previews" / f"step_{step:06d}" / "index.html" if val_data is not None else folder / "latest.json", flush=True)
+        log.event("DONE", f"{step}/{args.steps} updates | training session {duration(timer.snapshot(step)['elapsed'])}")
+        log.event("OUTPUT", folder / "previews" / f"step_{step:06d}" / "index.html" if val_data is not None else folder / "latest.json")
 
 
 def main():
@@ -195,6 +215,7 @@ def main():
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--save-every", type=int, default=250)
     parser.add_argument("--log-every", type=int, default=10)
+    parser.add_argument("--log-details", action="store_true", help="Also print all numeric diagnostics; always saved in loss.jsonl")
     parser.add_argument("--preview-every", type=int, default=250)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--init-rgb-run", type=Path)

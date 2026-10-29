@@ -106,7 +106,7 @@ def init_weights(net, init_type="normal", init_gain=0.02):
     net.apply(init_func)  # apply the initialization function <init_func>
 
 
-def init_net(net, init_type="normal", init_gain=0.02):
+def init_net(net, init_type="normal", init_gain=0.02, *, device=None):
     """Initialize a network: 1. register CPU/GPU device; 2. initialize the network weights
     Parameters:
         net (network)      -- the network to be initialized
@@ -117,7 +117,10 @@ def init_net(net, init_type="normal", init_gain=0.02):
     """
     import os
 
-    if torch.cuda.is_available():
+    if device is not None:
+        net.to(device)
+        print(f"Initialized with device {device}")
+    elif torch.cuda.is_available():
         if "LOCAL_RANK" in os.environ:
             local_rank = int(os.environ["LOCAL_RANK"])
             net.to(local_rank)

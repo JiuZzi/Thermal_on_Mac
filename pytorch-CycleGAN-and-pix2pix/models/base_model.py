@@ -87,7 +87,9 @@ class BaseModel(ABC):
         for name in self.model_names:
             if isinstance(name, str):
                 net = getattr(self, "net" + name)
-                net = networks.init_net(net, opt.init_type, opt.init_gain)
+                # Explicit inference devices must also be honored during initialization.
+                kwargs = {} if self.isTrain else {"device": self.device}
+                net = networks.init_net(net, opt.init_type, opt.init_gain, **kwargs)
 
                 # Load networks if needed
                 if not self.isTrain or opt.continue_train:

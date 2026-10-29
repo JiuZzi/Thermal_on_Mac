@@ -20,8 +20,19 @@ DEFAULT_MANIFEST = ROOT / "runs/learned_color/data_seed42_v1/cycle_manifest.json
 
 def config_from(path=DEFAULT_CONFIG):
     config = read_json(path)
-    if config.get("format") != "D_unpaired_v1" or config.get("seed") != 42:
+    if config.get("format") not in ("D_unpaired_v1", "D_unpaired_v2") or config.get("seed") != 42:
         raise ValueError("Formal D uses the versioned seed42 configuration")
+    policies = {"fusion_policy", "fusion_min_quality", "chroma_smooth_policy"}
+    if config["format"] == "D_unpaired_v2":
+        if (not policies.issubset(config) or config["fusion_policy"] not in ("legacy", "quality_masked") or
+            config["chroma_smooth_policy"] not in ("legacy", "quality_soft") or
+            not isinstance(config["fusion_min_quality"], (int, float)) or not 0 <= config["fusion_min_quality"] <= 1):
+            raise ValueError("Specify valid D-v2 fusion and chroma smoothing policies")
+    elif policies.intersection(config):
+        raise ValueError("Use D_unpaired_v2 for new fusion/smoothing policies; preserve D-v1 runs")
+    for flag in ("semantic_gate", "use_semantic", "use_color", "flip_reliability"):
+        if type(config.get(flag)) is not bool:
+            raise ValueError(f"{flag} must be a boolean")
     if config.get("confidence_enabled") is not False:
         raise ValueError("Confidence C is not implemented; third channel must remain zero")
     for key in ("width", "height", "sampling_steps", "semantic_width", "semantic_loss_size", "replay_every"):
@@ -53,6 +64,8 @@ def config_from(path=DEFAULT_CONFIG):
     for key in ("semantic_min_quality", "color_min_quality"):
         if not 0 <= config[key] <= 1:
             raise ValueError(f"Invalid {key}")
+    if config["loss_weights"]["color_prior"] and config["color_min_quality"] <= 0:
+        raise ValueError("Active color prior requires color_min_quality in (0,1]")
     for key in ("base_revision", "control_revision"):
         if len(config[key]) != 40 or any(c not in "0123456789abcdef" for c in config[key]):
             raise ValueError("Pin pretrained models to full commits")

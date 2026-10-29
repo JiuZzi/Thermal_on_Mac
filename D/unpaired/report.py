@@ -2,6 +2,7 @@
 
 import html
 from pathlib import Path
+import time
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -9,6 +10,7 @@ import torch
 
 from D.common import ROOT, read_json, write_json, sha256
 from .data import on_device
+from .progress import ItemProgress, duration, event
 
 
 def to_image(values):
@@ -17,7 +19,7 @@ def to_image(values):
 
 
 @torch.no_grad()
-def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, metadata=None):
+def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, metadata=None, log=None):
     output = Path(output)
     identity = dict(format="D_unpaired_prediction_v1", metadata=metadata,
                     condition_manifest_sha256=sha256(dataset.folder / "manifest.json"),
@@ -39,6 +41,10 @@ def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, met
     from semantic_preview.inference import PALETTE
     cards = []
     length = min(limit, len(dataset)) if limit else len(dataset)
+    emit = log.event if log is not None else event
+    emit("PREVIEW", f"{length} images | output: {output}")
+    progress = ItemProgress(length, "PREVIEW", emit=emit)
+    started = time.perf_counter()
     for index in range(length):
         sample = on_device(dataset[index], device)
         frame, name = sample["frame"], sample["frame"]["stem"]
@@ -55,7 +61,6 @@ def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, met
             records[name] = dict(sha256=sha256(target), source=frame["source"],
                                  source_sha256=frame["source_sha256"], raw_model_output=True)
             write_json(output / "records.json", records)
-            print(f"Preview [{index+1}/{length}] {name}", flush=True)
         gray = (sample["x"][0,0].cpu().numpy() * 255).round().astype(np.uint8)
         edge = (sample["x"][0,1].cpu().numpy() * 255).round().astype(np.uint8)
         semantic = PALETTE[sample["p"].argmax(1)[0].cpu().numpy()]
@@ -75,6 +80,7 @@ def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, met
         panel_name = f"{name}.png"; panel.save(output / "panels" / panel_name)
         cards.append(f'<article><h3>{index+1:02d} {html.escape(frame["filename"])}</h3>'
                      f'<a href="panels/{panel_name}"><img loading="lazy" src="panels/{panel_name}"></a></article>')
+        progress.update(index+1)
     page = '<!doctype html><html lang="zh"><meta charset="utf-8"><title>D TIR unpaired</title>'
     page += '<style>body{font:16px sans-serif;margin:24px}img{max-width:100%}article{margin:24px 0}</style>'
     page += '<h1>D：真实TIR无配对适配</h1><p>输入固定为[TIR,清晰E,0]。语义P与颜色统计是同源辅助条件。每张预览seed42，第三通道尚未训练。</p>'
@@ -83,4 +89,5 @@ def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, met
     (output / "index.html").write_text(page + ''.join(cards) + '</html>', encoding="utf-8")
     write_json(output / "status.json", dict(phase="completed", count=length))
     model.train(was_training)
+    emit("PREVIEW", f"done in {duration(time.perf_counter()-started)} | {output / 'index.html'}")
     return output / "index.html"

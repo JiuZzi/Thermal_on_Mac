@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+from importlib import metadata
 from pathlib import Path
 import tempfile
 
@@ -14,6 +15,29 @@ from D.common import ROOT, EDGE_SOURCES, read_json, write_json, sha256, select_s
 from D.prepare_rgb import balanced, PROBABILITY_POLICY
 from .protocol import DEFAULT_CONFIG, DEFAULT_DATA, DEFAULT_MANIFEST, config_from, validate_arrays
 from .semantics import ConditionBuilder, default_semantic_checkpoint
+from .progress import ItemProgress, event
+
+
+def condition_pipeline_identity():
+    """Fingerprint all code that computes cached P/E/Q, not only the edge code."""
+    paths = {*EDGE_SOURCES, "D/common.py", "D/prepare_rgb.py", "D/unpaired/prepare.py",
+             "D/unpaired/semantics.py", "D/unpaired/protocol.py",
+             "pytorch-CycleGAN-and-pix2pix/models/learned_color_prior.py"}
+    versions = {key:metadata.version(key) for key in
+                ("torch", "transformers", "numpy", "scipy", "scikit-image", "Pillow")}
+    versions["torch"] = versions["torch"].split("+")[0]
+    return dict(version=2, code_policy="CRLF-normalized UTF-8 sources",
+                code_sha256={p:hashlib.sha256((ROOT / p).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+                             for p in sorted(paths)}, versions=versions)
+
+
+def validate_selection(rows):
+    seen = set()
+    for row in rows:
+        key = (row["domain"], row["split"], Path(row["image"]).stem)
+        if key in seen:
+            raise ValueError(f"Duplicate condition/output stem in {key[:2]}: {key[2]}; use unique source names")
+        seen.add(key)
 
 
 def main():
@@ -55,7 +79,10 @@ def main():
                 selected.append(dict(row, domain=domain))
     if not selected:
         parser.error("No selected images")
+    validate_selection(selected)
     torch.set_num_threads(4)
+    event("CACHE", f"{len(selected)} images | device={args.device} | output: {args.output_dir}")
+    event("LOAD", "Loading frozen TIR and RGB semantic models...")
     builder = ConditionBuilder(args.semantic_checkpoint, rgb=True, allow_download=args.allow_download,
                                flip=config["flip_reliability"], device=args.device)
     from models.clarity_semantic_edges import CLARITY_SETTINGS
@@ -66,6 +93,9 @@ def main():
                   contour_variant="clarity_v1", settings=CLARITY_SETTINGS,
                   rgb_probability_policy=PROBABILITY_POLICY,
                   code_sha256={p:sha256(ROOT / p) for p in EDGE_SOURCES})
+    if config["format"] == "D_unpaired_v2":
+        recipe["condition_pipeline"] = condition_pipeline_identity()
+        recipe["code_sha256"] = {p:recipe["condition_pipeline"]["code_sha256"][p] for p in EDGE_SOURCES}
     identity = json.loads(json.dumps(dict(dataset_id=data.get("dataset_id"), seed=42,
                                           source_manifest_sha256=sha256(args.data_manifest), recipe=recipe)))
     plan = [dict(source=r["image"], domain=r["domain"], role=r["split"], group=str(r["group"])) for r in selected]
@@ -88,12 +118,13 @@ def main():
             if content in seen and seen[content] != row["split"]:
                 raise ValueError("Decoded duplicate leaks across roles")
             seen[content] = row["split"]
-        print(f"Verified {len(result['frames'])}/{len(selected)} cached samples", flush=True)
+        event("CACHE", f"Verified {len(result['frames'])}/{len(selected)} existing samples")
     else:
         output.mkdir(parents=True); (output / "maps").mkdir()
         result = dict(format="D_unpaired_conditions_v1", identity=identity, selection=plan, frames=[])
         write_json(output / "manifest.json", result)
     start = len(result["frames"])
+    progress = ItemProgress(len(selected), "CACHE", start=start)
     for index, row in enumerate(selected[start:], start + 1):
         source = (args.data_manifest.parent / row["image"]).resolve()
         with Image.open(source) as im:
@@ -121,9 +152,9 @@ def main():
             condition=relative, condition_sha256=sha256(output / relative)))
         write_json(output / "manifest.json", result)
         write_json(output / "status.json", dict(phase="preparing", completed=index, total=len(selected)))
-        print(f"P/E/Q [{index}/{len(selected)}] {row['domain']} {row['split']} {source.name}", flush=True)
+        progress.update(index, f"{row['domain']}/{row['split']}")
     write_json(output / "status.json", dict(phase="completed", completed=len(selected), total=len(selected)))
-    print(output / "manifest.json", flush=True)
+    event("CACHE", f"done | {output / 'manifest.json'}")
 
 
 if __name__ == "__main__":

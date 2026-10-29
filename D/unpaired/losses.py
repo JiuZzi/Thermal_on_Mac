@@ -50,18 +50,22 @@ def self_similarity(gray):
 def spatial_content(generated, tir01, edge, *, generator=None, patches=128, temperature=.1):
     query = F.avg_pool2d(self_similarity(gray01(generated)), 4)
     key = F.avg_pool2d(self_similarity(tir01.float()), 4).detach()
-    mask = F.adaptive_max_pool2d(edge.detach().float(), query.shape[-2:]).amax(0).flatten().cpu() > .05
-    candidates = torch.nonzero(mask, as_tuple=False).flatten()
-    if len(candidates) < 2:
-        return generated.sum() * 0
+    masks = F.adaptive_max_pool2d(edge.detach().float(), query.shape[-2:])[:, 0].flatten(1).cpu() > .05
     if generator is None:
         generator = torch.Generator("cpu").manual_seed(42)
-    positions = candidates[torch.randperm(len(candidates), generator=generator)[:patches]].to(generated.device)
-    q = F.normalize(query.flatten(2).index_select(2, positions), dim=1).transpose(1, 2)
-    k = F.normalize(key.flatten(2).index_select(2, positions), dim=1)
-    logits = torch.bmm(q, k) / temperature
-    # Same diagonal cross-entropy without CUDA's nondeterministic nll_loss2d kernel.
-    return (torch.logsumexp(logits, dim=-1) - logits.diagonal(dim1=-2, dim2=-1)).mean()
+    values = []
+    for batch_index, mask in enumerate(masks):
+        candidates = torch.nonzero(mask, as_tuple=False).flatten()
+        if len(candidates) < 2:
+            values.append(generated[batch_index].sum() * 0)
+            continue
+        positions = candidates[torch.randperm(len(candidates), generator=generator)[:patches]].to(generated.device)
+        q = F.normalize(query[batch_index:batch_index+1].flatten(2).index_select(2, positions), dim=1).transpose(1, 2)
+        k = F.normalize(key[batch_index:batch_index+1].flatten(2).index_select(2, positions), dim=1)
+        logits = torch.bmm(q, k) / temperature
+        # In-image positives/negatives, without borrowing another image's edge mask.
+        values.append((torch.logsumexp(logits, dim=-1) - logits.diagonal(dim1=-2, dim2=-1)).mean())
+    return torch.stack(values).mean()
 
 
 def semantic_consistency(predicted, source, quality, minimum=.1):
@@ -77,18 +81,30 @@ def semantic_consistency(predicted, source, quality, minimum=.1):
     return torch.stack(values).sum() / torch.stack(active).sum().clamp_min(1.)
 
 
-def chroma_smoothness(generated, edge, probabilities):
+def chroma_smoothness(generated, edge, probabilities, quality=None, *, minimum=.1):
     """Weak within-class chroma regularization; allow changes at source boundaries."""
     rgb = (generated.float() + 1) / 2
     luminance = (rgb * rgb.new_tensor([.299,.587,.114])[None,:,None,None]).sum(1,keepdim=True)
     chroma = rgb - luminance
-    labels = probabilities.detach().argmax(1, keepdim=True)
+    p = probabilities.detach().float()
+    labels = p.argmax(1, keepdim=True)
+    if quality is not None:
+        if (quality.shape != edge.shape or not torch.isfinite(quality).all() or
+            (quality < 0).any() or (quality > 1).any() or not 0 <= minimum <= 1):
+            raise ValueError("Invalid semantic quality for chroma smoothing")
+        quality = quality.detach().float()
     total = generated.sum() * 0
     for axis in (-1, -2):
         a, b = [slice(None)] * 4, [slice(None)] * 4
         a[axis], b[axis] = slice(1, None), slice(None, -1)
         a, b = tuple(a), tuple(b)
-        weight = torch.exp(-5 * torch.maximum(edge[a], edge[b]).detach()) * (labels[a] == labels[b])
+        if quality is None:
+            agreement = labels[a] == labels[b]  # Preserve the original D-v1 objective.
+        else:
+            agreement = (p[a] * p[b]).sum(1, keepdim=True)
+            pair_quality = torch.minimum(quality[a], quality[b])
+            agreement = agreement * pair_quality * (pair_quality >= minimum)
+        weight = torch.exp(-5 * torch.maximum(edge[a], edge[b]).detach()) * agreement
         total = total + ((chroma[a] - chroma[b]).abs() * weight).mean()
     return total
 

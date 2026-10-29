@@ -63,9 +63,15 @@ class SourceAdapter(nn.Module):
 
 
 class SemanticColorFusion(nn.Module):
-    def __init__(self, controlnet, prior, width=16):
+    def __init__(self, controlnet, prior, width=16, *, policy="legacy", min_quality=.1,
+                 semantic_gate=True):
         super().__init__()
+        if policy not in ("legacy", "quality_masked") or not 0 <= min_quality <= 1:
+            raise ValueError("Invalid semantic/color fusion policy")
         self.prior = prior
+        self.policy, self.min_quality, self.semantic_gate = policy, min_quality, semantic_gate
+        self.collect_diagnostics = False
+        self.diagnostics = {}
         def encoder(channels):
             return nn.Sequential(nn.Conv2d(channels, width, 3, padding=1), nn.SiLU(),
                                  nn.Conv2d(width, width, 3, padding=1), nn.SiLU())
@@ -80,24 +86,60 @@ class SemanticColorFusion(nn.Module):
 
     def encode(self, p, q, size):
         color = self.prior(p, q)
+        if self.policy == "quality_masked":
+            # Pool only supported observations. Normalizing by support avoids
+            # squaring Q: the output gate below applies the strength once.
+            valid = (q > 0) & (q >= self.min_quality)
+            quality = q.detach().float() * valid
+            semantic = self._masked_encode(self.semantic, p.float(), quality, size) \
+                if self.semantic_gate else self.semantic(F.interpolate(p.float(), size=size, mode="area"))
+            gate = color["strength"].float() * valid
+            learned = self._masked_encode(self.color, color["features"].float(), gate, size)
+            return semantic, learned, quality, gate
         semantic = self.semantic(F.interpolate(p.float(), size=size, mode="area"))
         learned = self.color(F.interpolate(color["features"].float(), size=size, mode="area"))
         return semantic, learned, q, color["strength"]
 
+    @staticmethod
+    def _masked_encode(encoder, values, weights, size):
+        mass = F.interpolate(weights, size=size, mode="area")
+        values = F.interpolate(values * weights, size=size, mode="area") / mass.clamp_min(1e-8)
+        support = (mass > 0).to(values)
+        # Mask after every layer as well, so a convolution's bias or context at
+        # an unsupported cell cannot be propagated back into trusted cells.
+        for layer in encoder:
+            values = layer(values) * support
+        return values
+
     def inject(self, down, mid, encoded, config):
         semantic, color, quality, gate = encoded
         outputs = []
-        for index, value in enumerate([*down, mid]):
+        norms = []
+        for index, original in enumerate([*down, mid]):
+            value = original
             size = value.shape[-2:]
+            sem_addition = color_addition = None
             if config.get("use_semantic", True):
                 addition = self.sem_heads[index](F.interpolate(semantic, size=size, mode="nearest"))
                 if config["semantic_gate"]:
                     addition = addition * F.interpolate(quality, size=size, mode="area")
+                sem_addition = addition
                 value = value + addition.to(value.dtype)
             if config.get("use_color", True):
                 addition = self.color_heads[index](F.interpolate(color, size=size, mode="nearest"))
-                value = value + (addition * F.interpolate(gate, size=size, mode="area")).to(value.dtype)
+                color_addition = addition * F.interpolate(gate, size=size, mode="area")
+                value = value + color_addition.to(value.dtype)
             outputs.append(value)
+            if self.collect_diagnostics:
+                def rms(tensor):
+                    return tensor.detach().float().square().mean().sqrt() if tensor is not None else value.new_zeros(())
+                norms.append(torch.stack((rms(original), rms(sem_addition), rms(color_addition))))
+        if self.collect_diagnostics:
+            control, sem, chroma = torch.stack(norms).mean(0).unbind()
+            self.diagnostics = dict(control_residual_rms=control, semantic_residual_rms=sem,
+                                    color_residual_rms=chroma,
+                                    semantic_control_ratio=sem / control.clamp_min(1e-8),
+                                    color_control_ratio=chroma / control.clamp_min(1e-8))
         return outputs[:-1], outputs[-1]
 
 
@@ -125,8 +167,12 @@ class FormalGenerator(nn.Module):
         self.vae.requires_grad_(False)
         self.vae.enable_gradient_checkpointing()
         self.source = SourceAdapter()
-        prior = LearnedChromaPrior(prior_path, FMB_CLASS_NAMES, require_loss_support=True)
-        self.fusion = SemanticColorFusion(self.controlnet, prior, config["semantic_width"])
+        prior = LearnedChromaPrior(prior_path, FMB_CLASS_NAMES,
+                                  require_loss_support=config["loss_weights"]["color_prior"] > 0)
+        self.fusion = SemanticColorFusion(self.controlnet, prior, config["semantic_width"],
+            policy=config.get("fusion_policy", "legacy"), min_quality=config.get("fusion_min_quality", .1),
+            semantic_gate=config["semantic_gate"])
+        self.output_diagnostics = {}
         pipeline.text_encoder.float().cpu().eval()
         tokens = pipeline.tokenizer([config["negative_prompt"], config["prompt"]], padding="max_length",
                      max_length=pipeline.tokenizer.model_max_length, truncation=True, return_tensors="pt")
@@ -141,6 +187,10 @@ class FormalGenerator(nn.Module):
             lora_rank=config["lora_rank"], semantic_width=config["semantic_width"],
             prior=prior.metadata, source=source_identity, semantic_gate=config["semantic_gate"],
             use_semantic=config.get("use_semantic", True), use_color=config.get("use_color", True))
+        if config.get("format") == "D_unpaired_v2":
+            self.identity.update(fusion_policy=config["fusion_policy"],
+                                 fusion_min_quality=config["fusion_min_quality"],
+                                 chroma_smooth_policy=config["chroma_smooth_policy"])
         digest = hashlib.sha256(json.dumps(self.identity, sort_keys=True).encode()).digest()
         self.register_buffer("input_signature", torch.tensor(list(digest), dtype=torch.uint8))
 
@@ -165,12 +215,17 @@ class FormalGenerator(nn.Module):
                 current[name].copy_(value.to(current[name]))
 
     def _validate(self, x, p, q):
-        if (x.ndim != 4 or x.shape[1] != 3 or min(x.shape[-2:]) < 32 or
+        if (x.ndim != 4 or x.shape[0] < 1 or x.shape[1] != 3 or min(x.shape[-2:]) < 32 or
             any(v % 8 for v in x.shape[-2:]) or not torch.isfinite(x).all() or
             (x < 0).any() or (x > 1).any() or torch.count_nonzero(x[:, 2])):
             raise ValueError("Expected [TIR01,E01,zero] in aligned coordinates divisible by 8")
         if p.shape != (x.shape[0], 15, *x.shape[-2:]) or q.shape != x[:, :1].shape:
             raise ValueError("Semantic/quality coordinates differ from X")
+        for name, values in (("semantic probabilities", p), ("semantic quality", q)):
+            if not torch.is_floating_point(values) or not torch.isfinite(values).all() or (values < 0).any() or (values > 1).any():
+                raise ValueError(f"Expected finite {name} in [0,1]")
+        if not torch.allclose(p.float().sum(1), torch.ones_like(p[:, 0], dtype=torch.float32), atol=4e-6, rtol=0):
+            raise ValueError("Semantic probability mass differs from one")
 
     def _autocast(self, x):
         return torch.autocast(x.device.type, dtype=torch.float16, enabled=x.device.type == "cuda")
@@ -213,6 +268,11 @@ class FormalGenerator(nn.Module):
             result = self.vae.decode(latent / self.vae.config.scaling_factor).sample
         if result.shape != (x.shape[0], 3, *x.shape[-2:]):
             raise ValueError("Generated RGB geometry changed")
+        if not torch.isfinite(result).all():
+            raise FloatingPointError("Nonfinite decoded RGB before output clamping; inspect model/precision")
+        if self.fusion.collect_diagnostics:
+            self.output_diagnostics = dict(decoder_saturated_fraction=(result.detach().abs() > 1).float().mean(),
+                                           decoder_abs_max=result.detach().float().abs().max())
         return result.float().clamp(-1, 1)
 
     def replay_loss(self, rgb, x, p, q, generator):

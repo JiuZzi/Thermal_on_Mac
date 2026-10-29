@@ -126,6 +126,8 @@ def main():
     parser.add_argument('--color-loss-min-quality',type=float,default=.5)
     parser.add_argument('--color-loss-warmup-steps',type=int,default=1000)
     parser.add_argument('--workers',type=int); parser.add_argument('--device',choices=('cpu','cuda:0'),default='cuda:0')
+    parser.add_argument('--checkpoints-dir',type=Path,help='Read downloaded generators from this directory; default runs/checkpoints')
+    parser.add_argument('--limit',type=int,default=0,help='Test-only preview count; 0 exports the complete selected split')
     parser.add_argument('--no-reliability-flip',action='store_true'); parser.add_argument('--gate-semantic',action='store_true')
     parser.add_argument('--results-dir',type=Path,default=ROOT/'runs/results')
     args=parser.parse_args()
@@ -140,6 +142,8 @@ def main():
     if (args.epochs<1 or not 0<args.lr<float('inf') or args.workers<0
             or not 0<=args.decay_epochs<args.epochs or args.save_every<1):
         parser.error('Invalid training parameters')
+    if args.limit<0 or (args.limit and not args.test_only):
+        parser.error('--limit is a nonnegative test-only preview count')
     if args.from_scratch and (args.init_condition_dir or args.init_contour_dir or args.test_only):
         parser.error('--from-scratch is for training/check-only and cannot load old GAN generators')
     if args.resume and (args.from_scratch or args.init_condition_dir or args.init_contour_dir or args.test_only):
@@ -168,7 +172,7 @@ def main():
     validate_prior_partitions(data,base,args.prior)
     if not args.semantic_checkpoint.is_file():
         parser.error('Missing original TIR semantic checkpoint')
-    checkpoints=ROOT/'runs/checkpoints'
+    checkpoints=(args.checkpoints_dir or ROOT/'runs/checkpoints').resolve()
     plan=None
     if args.resume:
         try:
@@ -196,8 +200,8 @@ def main():
         parser.error('Preserve existing experiment; choose a new name')
     if args.resume and (running:=active_training(args.name)):
         parser.error(f'Existing training processes still running: {running}; stop this experiment before recovery')
-    if args.device=='cpu':
-        parser.error('Use CPU for check-only or check_learned_color.py; full launcher selects CUDA')
+    if args.device=='cpu' and args.train:
+        parser.error('Formal training requires CUDA; CPU is supported for --test-only and --check-only')
     if args.device.startswith('cuda'):
         import torch
         if not torch.cuda.is_available():
@@ -233,10 +237,12 @@ def main():
     else:
         count=sum(r['split']==args.phase for r in data['domains']['B'])
         if not count: parser.error('No TIR images for requested evaluation role')
+        if args.limit: count=min(count,args.limit)
         if (args.results_dir/args.name/f'{args.phase}_{args.epoch}').exists():
             parser.error('Preserve existing export; choose another results directory')
         command+=['--phase',args.phase,'--epoch',args.epoch,'--results_dir',str(args.results_dir.resolve()),
-                  '--color_feature_override',args.feature_override,'--num_test',str(count),'--preprocess','none','--no_flip','--eval']
+                  '--color_feature_override',args.feature_override,'--num_test',str(count),'--preprocess','none','--no_flip','--eval',
+                  '--device',args.device]
     print(shlex.join(command),flush=True)
     extra={}
     if plan:
