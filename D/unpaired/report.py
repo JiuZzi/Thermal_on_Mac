@@ -14,12 +14,28 @@ from .progress import ItemProgress, duration, event
 
 
 def to_image(values):
+    if values.ndim != 4 or values.shape[0] != 1 or values.shape[1] != 3:
+        raise ValueError("Preview expects one RGB image [1,3,H,W]")
+    if not torch.isfinite(values).all():
+        raise FloatingPointError("Refuse to save a nonfinite preview as a black/clamped image")
     pixels = ((values.detach().float().cpu()[0].clamp(-1,1) + 1) * 127.5).round().byte().permute(1,2,0).numpy()
     return Image.fromarray(pixels)
 
 
 @torch.no_grad()
 def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, metadata=None, log=None):
+    was_training = model.training
+    try:
+        model.eval()
+        return _preview(model, dataset, output, baseline=baseline, resume=resume,
+                        limit=limit, metadata=metadata, log=log)
+    finally:
+        model.train(was_training)
+
+
+def _preview(model, dataset, output, *, baseline=None, resume=False, limit=0, metadata=None, log=None):
+    if type(limit) is not int or limit < 0:
+        raise ValueError("Preview limit must be nonnegative")
     output = Path(output)
     identity = dict(format="D_unpaired_prediction_v1", metadata=metadata,
                     condition_manifest_sha256=sha256(dataset.folder / "manifest.json"),
@@ -34,7 +50,6 @@ def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, met
         write_json(output / "prediction.json", identity); write_json(output / "records.json", {})
     records = read_json(output / "records.json")
     device = next(model.parameters()).device
-    was_training = model.training; model.eval()
     # Palette is display-only, never fed into the generator.
     import sys
     sys.path.insert(0, str(ROOT / "scripts"))
@@ -88,6 +103,5 @@ def preview(model, dataset, output, *, baseline=None, resume=False, limit=0, met
     page += '<p>这些是原始模型输出，不是经滤镜修饰的图像。短程示例不构成完整测试集的FID/KID结论。</p>'
     (output / "index.html").write_text(page + ''.join(cards) + '</html>', encoding="utf-8")
     write_json(output / "status.json", dict(phase="completed", count=length))
-    model.train(was_training)
     emit("PREVIEW", f"done in {duration(time.perf_counter()-started)} | {output / 'index.html'}")
     return output / "index.html"

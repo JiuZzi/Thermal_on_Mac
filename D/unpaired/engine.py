@@ -6,6 +6,7 @@ from torch.nn import functional as F
 
 from .semantics import legacy_models
 from .protocol import ReplayPool
+from .checkpoint import capture_rng, restore_rng
 from .losses import edge_preservation, spatial_content, semantic_consistency, chroma_smoothness, lsgan
 
 
@@ -67,19 +68,32 @@ class UnpairedEngine:
         if not torch.isfinite(values).all():
             raise _NonfiniteUpdate(stage)
 
-    def _check_losses(self, terms, stage):
-        self._require_finite(torch.stack([v.detach().float() for v in terms.values()]), stage)
+    def _check_losses(self, terms, stage, total=None):
+        values = [v.detach().float() for v in terms.values()]
+        if total is not None:
+            values.append(total.detach().float())
+        self._require_finite(torch.stack(values), stage)
 
     def _check_gradients(self, parameters, stage):
         grads = [p.grad.detach() for p in parameters if p.grad is not None]
         if grads:
             self._require_finite(torch.nn.utils.get_total_norm(grads, foreach=True), stage)
 
+    @staticmethod
+    def _gradient_norm(parameters):
+        values = [p.grad.detach().float().norm() for p in parameters if p.grad is not None]
+        return torch.stack(values).norm() if values else None
+
     def update(self, tir, rgb, step, total, *, diagnostics=False):
         before = self.retry_state()
+        global_before = capture_rng()
         try:
             applied, values = self._attempt_update(tir, rgb, step, total, diagnostics=diagnostics)
         except FloatingPointError as error:
+            # An optimizer may have partially committed. Never describe that
+            # state as an unchanged, retryable update or checkpoint it as such.
+            if self.phase in ("commit", "committed"):
+                raise
             bad = []
             for prefix, module in (("generator", self.generator), ("reverse", self.reverse), ("critics", self.critics)):
                 for name, parameter in module.named_parameters():
@@ -91,6 +105,7 @@ class UnpairedEngine:
                     break
             self.opt_g.zero_grad(set_to_none=True); self.opt_d.zero_grad(set_to_none=True)
             self.restore_retry(before)
+            restore_rng(global_before)
             scale_before = self.scaler.get_scale()
             if self.scaler.is_enabled():
                 # Initialize lazily even if the failure happened before backward.
@@ -110,7 +125,9 @@ class UnpairedEngine:
             values["amp_scale"] = self.scaler.get_scale()
             values["retry_count"] = self.overflow_count
         self.overflow_count = 0
-        self.phase = "ready"
+        # The outer loop acknowledges the counter/sampler transaction before
+        # setting ready. An interrupt in between must use a periodic snapshot.
+        self.phase = "committed"
         return applied, values
 
     def _rates(self, step, total):
@@ -123,6 +140,7 @@ class UnpairedEngine:
 
     def _attempt_update(self, tir, rgb, step, total, *, diagnostics=False):
         g, reverse, critics = self.generator, self.reverse, self.critics
+        g.fusion.collect_diagnostics = diagnostics
         weights = self.config["loss_weights"]
         g.train(); reverse.train(); critics.requires_grad_(False)
         self._rates(step, total)
@@ -132,6 +150,10 @@ class UnpairedEngine:
         self.phase = "tir_forward"
         fake_rgb = g(tir["x"], tir["p"], tir["q"], generator=self.noise_rng)
         self._require_finite(fake_rgb, "tir_forward")
+        if diagnostics:
+            losses.update(g.fusion.diagnostics)
+            losses.update(g.output_diagnostics)
+            losses["rgb_replay_active"] = int(bool(weights["rgb_replay"]) and (step+1) % self.config["replay_every"] == 0)
         real_tir = tir["x"][:, :1] * 2 - 1
         terms = dict(adversarial_rgb=lsgan(critics["RGB"](fake_rgb), True))
         if weights["cycle_tir"]:
@@ -148,11 +170,18 @@ class UnpairedEngine:
                                                min_quality=self.config.get("color_min_quality", .5))
             losses["color_coverage"] = coverage.detach()
         if weights["chroma_smooth"]:
-            terms["chroma_smooth"] = chroma_smoothness(fake_rgb, tir["x"][:,1:2], tir["p"])
+            quality = tir["q"] if self.config.get("chroma_smooth_policy", "legacy") == "quality_soft" else None
+            terms["chroma_smooth"] = chroma_smoothness(fake_rgb, tir["x"][:,1:2], tir["p"], quality,
+                                                      minimum=self.config["semantic_min_quality"])
         color_ramp = min((step+1) / max(1,self.config["color_warmup_steps"]), 1.)
         loss = sum(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
                    (color_ramp if key == "color_prior" else 1.) for key,value in terms.items())
-        self._check_losses(terms, "tir_losses")
+        self._check_losses(terms, "tir_losses", loss)
+        losses["G_total"] = loss.detach()
+        if diagnostics:
+            losses.update({f"weighted_{key}": (value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
+                          (color_ramp if key == "color_prior" else 1.)).detach() for key, value in terms.items()})
+            losses["color_weight"] = weights["color_prior"] * color_ramp
         self.scaler.scale(loss).backward()
         self._check_gradients(self.params_g, "tir_backward")
         losses.update({key:value.detach() for key,value in terms.items()})
@@ -172,7 +201,11 @@ class UnpairedEngine:
             terms["cycle_rgb"] = F.l1_loss(reconstructed, rgb["rgb"])
         loss = sum(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key])
                    for key,value in terms.items())
-        self._check_losses(terms, "rgb_cycle_losses")
+        self._check_losses(terms, "rgb_cycle_losses", loss)
+        losses["G_total"] = losses["G_total"] + loss.detach()
+        if diagnostics:
+            losses.update({f"weighted_{key}": (value * (weights["adversarial"] if key.startswith("adversarial") else weights[key])).detach()
+                           for key, value in terms.items()})
         self.scaler.scale(loss).backward()
         self._check_gradients(self.params_g, "rgb_cycle_backward")
         losses.update({key:value.detach() for key,value in terms.items()})
@@ -185,13 +218,20 @@ class UnpairedEngine:
         if weights["rgb_replay"] and (step+1) % self.config["replay_every"] == 0:
             self.phase = "rgb_replay_forward"
             replay = g.replay_loss(rgb["rgb"], rgb["x"], rgb["p"], rgb["q"], self.noise_rng)
-            self._require_finite(replay, "rgb_replay_loss")
+            self._check_losses(dict(replay=replay), "rgb_replay_loss", weights["rgb_replay"] * replay)
+            losses["G_total"] = losses["G_total"] + weights["rgb_replay"] * replay.detach()
+            if diagnostics:
+                losses["weighted_rgb_replay"] = weights["rgb_replay"] * replay.detach()
             self.scaler.scale(weights["rgb_replay"] * replay).backward()
             self._check_gradients(self.params_g, "rgb_replay_backward")
             losses["rgb_replay"] = replay.detach()
             del replay
         self.scaler.unscale_(self.opt_g)
         if diagnostics:
+            for name, parameters in (("diffusion", g.parameters()), ("reverse", reverse.parameters())):
+                value = self._gradient_norm(parameters)
+                if value is not None:
+                    losses[f"grad_norm_{name}"] = value
             conv = g.controlnet.controlnet_cond_embedding.conv_in
             if conv.weight.grad is not None:
                 for channel,name in enumerate(("TIR", "E", "C_zero")):
@@ -210,7 +250,7 @@ class UnpairedEngine:
                        lsgan(critics["RGB"](self.rgb_pool.query(saved_rgb)), False))
         d_tir = .5 * (lsgan(critics["TIR"](real_tir), True) +
                        lsgan(critics["TIR"](self.tir_pool.query(saved_tir)), False))
-        self._check_losses(dict(D_RGB=d_rgb, D_TIR=d_tir), "discriminator_losses")
+        self._check_losses(dict(D_RGB=d_rgb, D_TIR=d_tir), "discriminator_losses", d_rgb+d_tir)
         (d_rgb + d_tir).backward()
         d_norm = nn.utils.clip_grad_norm_(critics.parameters(), self.config["max_grad_norm"])
         self._require_finite(d_norm, "discriminator_gradients")
@@ -229,11 +269,18 @@ class UnpairedEngine:
                     rgb_pool=self.rgb_pool.state(), tir_pool=self.tir_pool.state(),
                     numerical_failures_total=self.numerical_failures_total)
 
-    def restore(self, state):
+    @staticmethod
+    def validate_state(state):
         for name in ("opt_g", "opt_d"):
             if any(not torch.isfinite(value).all() for item in state[name]["state"].values()
                    for value in item.values() if torch.is_tensor(value)):
                 raise ValueError(f"Refuse nonfinite optimizer history: {name}")
+        scale = state.get("scaler", {}).get("scale")
+        if scale is not None and (not 0 < float(scale) < float("inf")):
+            raise ValueError("Refuse invalid AMP scale")
+
+    def restore(self, state):
+        self.validate_state(state)
         self.opt_g.load_state_dict(state["opt_g"]); self.opt_d.load_state_dict(state["opt_d"])
         self.scaler.load_state_dict(state["scaler"])
         self.noise_rng.set_state(state["noise_rng"]); self.patch_rng.set_state(state["patch_rng"])

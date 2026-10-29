@@ -1,0 +1,333 @@
+{
+  "format": "D_audited_recovery_sources_v1",
+  "note": "Exact audited baseline sources; LF/CRLF variants only. Model, data, prior and schedule are checked separately.",
+  "revisions": {
+    "6aec9bc3": {
+      "commit": "6aec9bc3bdcd30c849d7ce8c694343dc5174933d",
+      "files": {
+        "D/adaptation.py": {
+          "lf": "1229043621cb9363abf70edb92f30f0d3fee0b4bbbf5eaa51abd6ab87ce494ba",
+          "crlf": "61df0cd4037c5a009907f21f5d83d240ef3b5a157232c18b876888b5575003e6"
+        },
+        "D/common.py": {
+          "lf": "394c4e7d0f4802dc24d5df2cc015b1a137bae0120f97bc2294fbc5fb6d2bad16",
+          "crlf": "9f0f264619a0c3f5cda6ace7a2e93e00ba6f52d5d7ced9323696c1cebc9ce627"
+        },
+        "D/models.py": {
+          "lf": "4835108e8924f12e88878907c9f4c0d1384120799487576fe54d0ac7e2c05273",
+          "crlf": "0f3a5c51a5f8fec37cafa00d6db0f88ae7a498a6ea9efe1d5f178e753d81dec2"
+        },
+        "D/prepare_rgb.py": {
+          "lf": "5c928ec3d9993a4a6c699d70b5f1a3f80f361f061b55371703d7794ec5343b67",
+          "crlf": "22a77f31f6bd4aed8fb8098b4ee2b4dcb057e25a88783dffb07bcbfe8008166c"
+        },
+        "D/unpaired/__init__.py": {
+          "lf": "1466d09386f78ffbd8d8a5d6d3695c36ca074b5d9faa5dce7e8368364f19b01d",
+          "crlf": "f581bc5e0b24bae7bb907c13bf8e7c950161206c679285cc621ab480f1a52397"
+        },
+        "D/unpaired/checkpoint.py": {
+          "lf": "09c11b3bc022efbbb01f6d48c0b304fc345cc87927f4cc512dd675a96265c7aa",
+          "crlf": "b7396c8213661989dfde3f31f40e3853e52fa26744ff0f863b6fd00246edd34d"
+        },
+        "D/unpaired/data.py": {
+          "lf": "54c92ad98ce22328581855c754eb06191319099a5c6b567f482566a08cc5ec9c",
+          "crlf": "1fd93ffac28508a60a0dc174163647f52ddc0580e7985461b35d23d7e95ddd5c"
+        },
+        "D/unpaired/engine.py": {
+          "lf": "28af6e1f9d5e0d16b0e2745d02ca0bdeb36b0cccb9dc7356c11b28155da06451",
+          "crlf": "0541f507de292686fbd00308b940741dfb73b246ad4424630108ba3b86559721"
+        },
+        "D/unpaired/losses.py": {
+          "lf": "35c5fe70d8e32ef23daf7b7ddc00d28e89b7fc05720b5bf32df73bc3bacf39f9",
+          "crlf": "746b23167a21590473c78e3d93a97e964a11a32ebb269690880d782e6f56f297"
+        },
+        "D/unpaired/model.py": {
+          "lf": "7eee1b1982832eb362269b53a2e3b8ad1f5524c5826b5d7dd8bad66df1e8afd6",
+          "crlf": "bcd150236f7d9026ea619552c1905b83f1652035ae3f3db5c59d326c648facbf"
+        },
+        "D/unpaired/protocol.py": {
+          "lf": "a56035dbdffcb09bf665eb252e8d0efac8c91222b309d71b818fd084bf6f9943",
+          "crlf": "aef2b8c1c60652e09118611ccd75d448d169ad922fb6eeb429e24639fbbcb5b6"
+        },
+        "D/unpaired/report.py": {
+          "lf": "b70acc1a787003b6a98f410f820bc033c26e203a45edcc774cf465a20568fd5e",
+          "crlf": "dec42d057afcdccd450b0cbea23938159b129dbef22998c4b41a512669b89dae"
+        },
+        "D/unpaired/semantics.py": {
+          "lf": "70149cb6a4dbdf031adebc66c00a9a86d91ffd5ec92b5247cf9e3a85c9b9b566",
+          "crlf": "8f01fe8ac888354b08c1860f6b83cd317ccd0f85442336d59cb43f365f9c632e"
+        },
+        "D/unpaired/train.py": {
+          "lf": "13a307d36431061fe95cea1319bd33ed948460e83795bb59fb799b82d078c598",
+          "crlf": "2a149f6026280fbcd4b9e0b769b4bad4a7629cda6386738dd412bf1ae88ecaff"
+        },
+        "pytorch-CycleGAN-and-pix2pix/data/grouped_unaligned_dataset.py": {
+          "lf": "f7095d486c42171b8f6a82f63ceb5f08592d03aa3231a5006315390d9b4c211b",
+          "crlf": "9724483bca34f8fea038c09448794b4fb9b39e0be3a96bd7ad990ee3620693c9"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/clarity_semantic_edges.py": {
+          "lf": "d4a219484d320b64c99c20dd7ad20e1bccda52fdb1b981951ffe9f5be382d59c",
+          "crlf": "e9114ed388c0aa4d7b3ec43ad064e185b47738c28138ffebacc662c626af1e53"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/learned_color_prior.py": {
+          "lf": "87c0f8f5279f51a4042aadcbe83f06b790708bf9097e1e6133d3b184998cb6f4",
+          "crlf": "d8b6c6de88807a72c4596264537a6f957fbff6b8a019ea8d3ee541fc1df0897e"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/networks.py": {
+          "lf": "2bfcb7adb19f7b7ff6fd8dd76e313200acf000e96784b920658a62e1a11fc04f",
+          "crlf": "f98ddd61e689880f4c60bd2bfb6a40370f276e417c16006a2fac188268d7cd32"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/saliency_edges.py": {
+          "lf": "9b94c40e00db29bf0ff9e9353c21ef4a748273392d49dd91d3f419561c45af6c",
+          "crlf": "0e7aad9f1b5de1395f1a5a2d20faa33f32be0f1a7574181c9032cd1ee95fb20e"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/selective_semantic_edges.py": {
+          "lf": "0ad7507bb6f016e8cacae4ebdcc2bf54cfba5c4817b140c50fb555c9056e5f4a",
+          "crlf": "4b3379cafc5e7de713d4363d61167a42b6062e70afddf3585931e0c1cec62d2c"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/semantic_contour.py": {
+          "lf": "7a3bbf49f31bf053c33ef68ede9571b202ab21ac0aed7daae05a1e00a97f8723",
+          "crlf": "60298e745e8e5090da6927f601dac9bda545906c9348198d8e00bf0b36fff293"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/semantic_edges.py": {
+          "lf": "62de1e27bf75439f68a54825edbb62e6cb9dd5834a20d3bbcb81ee9dacbe018f",
+          "crlf": "462e17f2de696fa6a104ce54a6871c69200ae1d9e9a73d547a5d653c5977998b"
+        },
+        "scripts/semantic_preview/_vendor/mix_transformer.py": {
+          "lf": "b0b1232f3ada7934a65e6b98dec2238c1d5c38eec12dbe5d852c049861244350",
+          "crlf": "e94e321c0bb22e7a32598dda1809f86921ef8fdef2e4c710a085f8af2d396c58"
+        },
+        "scripts/semantic_preview/checkpoint.py": {
+          "lf": "219650e618a11bb665226d437115812fcd6a8796f74f0bc864babf0ed01c4669",
+          "crlf": "0d1099c5af1edfa405da718a2160474c3b462906a62ceb106da0d8a48418c856"
+        },
+        "scripts/semantic_preview/inference.py": {
+          "lf": "3fd8152422988ea266ab4001db0d278d0aed0f437df8f4859b938ed00f30965e",
+          "crlf": "e2c1aa936f5960df586de98fca717e947dbdaf2ff523a2ae317a14a23f1ac6be"
+        },
+        "scripts/semantic_preview/model.py": {
+          "lf": "eda229a3401592778a2888014fcf16003adf02134f6deaa5e55599490aba5087",
+          "crlf": "f0c16af9df0f0538dfb977ac02f8ebca0ee81a46958afa3faf1fbac5a93dcf12"
+        }
+      }
+    },
+    "855396cf": {
+      "commit": "855396cfe042cd35b1dd66758450d30a01878d5c",
+      "files": {
+        "D/adaptation.py": {
+          "lf": "1229043621cb9363abf70edb92f30f0d3fee0b4bbbf5eaa51abd6ab87ce494ba",
+          "crlf": "61df0cd4037c5a009907f21f5d83d240ef3b5a157232c18b876888b5575003e6"
+        },
+        "D/common.py": {
+          "lf": "394c4e7d0f4802dc24d5df2cc015b1a137bae0120f97bc2294fbc5fb6d2bad16",
+          "crlf": "9f0f264619a0c3f5cda6ace7a2e93e00ba6f52d5d7ced9323696c1cebc9ce627"
+        },
+        "D/models.py": {
+          "lf": "4835108e8924f12e88878907c9f4c0d1384120799487576fe54d0ac7e2c05273",
+          "crlf": "0f3a5c51a5f8fec37cafa00d6db0f88ae7a498a6ea9efe1d5f178e753d81dec2"
+        },
+        "D/prepare_rgb.py": {
+          "lf": "5c928ec3d9993a4a6c699d70b5f1a3f80f361f061b55371703d7794ec5343b67",
+          "crlf": "22a77f31f6bd4aed8fb8098b4ee2b4dcb057e25a88783dffb07bcbfe8008166c"
+        },
+        "D/unpaired/__init__.py": {
+          "lf": "1466d09386f78ffbd8d8a5d6d3695c36ca074b5d9faa5dce7e8368364f19b01d",
+          "crlf": "f581bc5e0b24bae7bb907c13bf8e7c950161206c679285cc621ab480f1a52397"
+        },
+        "D/unpaired/checkpoint.py": {
+          "lf": "958eafcd995058ff4d35d0df9fdf42c4239f5cee9b23cfc79bc344c25f597146",
+          "crlf": "24fa563686b1e9997e392f9da3b4c419dc3d652d8b02bbddeea1dbe14a085460"
+        },
+        "D/unpaired/data.py": {
+          "lf": "54c92ad98ce22328581855c754eb06191319099a5c6b567f482566a08cc5ec9c",
+          "crlf": "1fd93ffac28508a60a0dc174163647f52ddc0580e7985461b35d23d7e95ddd5c"
+        },
+        "D/unpaired/engine.py": {
+          "lf": "d97d0112b47ff574f764e526c18c9fe37fe52208a9de4af401e374a454eca0a3",
+          "crlf": "b84bad5255ecbae4b10a9e795948bed6ea5a0d7807dcca5dbca02f4b4bcde540"
+        },
+        "D/unpaired/losses.py": {
+          "lf": "2a442d8334fbc66abfb21d1b6c569ec9a9ced8aaccacc857eec4c97ededd08be",
+          "crlf": "3e324d04e00f8bfa41a2e748d1d4cc3de7f1151520c04ded359d47b39b848fd8"
+        },
+        "D/unpaired/model.py": {
+          "lf": "39c695a912f680d29bf7077b3e87417fadfff2c6cd5a1f40da3e88873729641b",
+          "crlf": "b39fa7ec2b45fc7f9b6a8e0fa63f1baa716937e8abf577052c4e1d4cce0c9453"
+        },
+        "D/unpaired/protocol.py": {
+          "lf": "a56035dbdffcb09bf665eb252e8d0efac8c91222b309d71b818fd084bf6f9943",
+          "crlf": "aef2b8c1c60652e09118611ccd75d448d169ad922fb6eeb429e24639fbbcb5b6"
+        },
+        "D/unpaired/report.py": {
+          "lf": "b70acc1a787003b6a98f410f820bc033c26e203a45edcc774cf465a20568fd5e",
+          "crlf": "dec42d057afcdccd450b0cbea23938159b129dbef22998c4b41a512669b89dae"
+        },
+        "D/unpaired/semantics.py": {
+          "lf": "70149cb6a4dbdf031adebc66c00a9a86d91ffd5ec92b5247cf9e3a85c9b9b566",
+          "crlf": "8f01fe8ac888354b08c1860f6b83cd317ccd0f85442336d59cb43f365f9c632e"
+        },
+        "D/unpaired/train.py": {
+          "lf": "6604f7c4d9e5a2c0796cd7e0ac5994ef166fdaddec7e30994727361333ed7733",
+          "crlf": "a5194c9a9ac298be4310e58bb8e566145ebb40d8ca4e91792cbf9fb79dcf53e7"
+        },
+        "pytorch-CycleGAN-and-pix2pix/data/grouped_unaligned_dataset.py": {
+          "lf": "f7095d486c42171b8f6a82f63ceb5f08592d03aa3231a5006315390d9b4c211b",
+          "crlf": "9724483bca34f8fea038c09448794b4fb9b39e0be3a96bd7ad990ee3620693c9"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/clarity_semantic_edges.py": {
+          "lf": "d4a219484d320b64c99c20dd7ad20e1bccda52fdb1b981951ffe9f5be382d59c",
+          "crlf": "e9114ed388c0aa4d7b3ec43ad064e185b47738c28138ffebacc662c626af1e53"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/learned_color_prior.py": {
+          "lf": "87c0f8f5279f51a4042aadcbe83f06b790708bf9097e1e6133d3b184998cb6f4",
+          "crlf": "d8b6c6de88807a72c4596264537a6f957fbff6b8a019ea8d3ee541fc1df0897e"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/networks.py": {
+          "lf": "2bfcb7adb19f7b7ff6fd8dd76e313200acf000e96784b920658a62e1a11fc04f",
+          "crlf": "f98ddd61e689880f4c60bd2bfb6a40370f276e417c16006a2fac188268d7cd32"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/saliency_edges.py": {
+          "lf": "9b94c40e00db29bf0ff9e9353c21ef4a748273392d49dd91d3f419561c45af6c",
+          "crlf": "0e7aad9f1b5de1395f1a5a2d20faa33f32be0f1a7574181c9032cd1ee95fb20e"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/selective_semantic_edges.py": {
+          "lf": "0ad7507bb6f016e8cacae4ebdcc2bf54cfba5c4817b140c50fb555c9056e5f4a",
+          "crlf": "4b3379cafc5e7de713d4363d61167a42b6062e70afddf3585931e0c1cec62d2c"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/semantic_contour.py": {
+          "lf": "7a3bbf49f31bf053c33ef68ede9571b202ab21ac0aed7daae05a1e00a97f8723",
+          "crlf": "60298e745e8e5090da6927f601dac9bda545906c9348198d8e00bf0b36fff293"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/semantic_edges.py": {
+          "lf": "62de1e27bf75439f68a54825edbb62e6cb9dd5834a20d3bbcb81ee9dacbe018f",
+          "crlf": "462e17f2de696fa6a104ce54a6871c69200ae1d9e9a73d547a5d653c5977998b"
+        },
+        "scripts/semantic_preview/_vendor/mix_transformer.py": {
+          "lf": "b0b1232f3ada7934a65e6b98dec2238c1d5c38eec12dbe5d852c049861244350",
+          "crlf": "e94e321c0bb22e7a32598dda1809f86921ef8fdef2e4c710a085f8af2d396c58"
+        },
+        "scripts/semantic_preview/checkpoint.py": {
+          "lf": "219650e618a11bb665226d437115812fcd6a8796f74f0bc864babf0ed01c4669",
+          "crlf": "0d1099c5af1edfa405da718a2160474c3b462906a62ceb106da0d8a48418c856"
+        },
+        "scripts/semantic_preview/inference.py": {
+          "lf": "3fd8152422988ea266ab4001db0d278d0aed0f437df8f4859b938ed00f30965e",
+          "crlf": "e2c1aa936f5960df586de98fca717e947dbdaf2ff523a2ae317a14a23f1ac6be"
+        },
+        "scripts/semantic_preview/model.py": {
+          "lf": "eda229a3401592778a2888014fcf16003adf02134f6deaa5e55599490aba5087",
+          "crlf": "f0c16af9df0f0538dfb977ac02f8ebca0ee81a46958afa3faf1fbac5a93dcf12"
+        }
+      }
+    },
+    "f2e53980": {
+      "commit": "f2e5398059315fb886f3199074ae402f5e8299ab",
+      "files": {
+        "D/adaptation.py": {
+          "lf": "1229043621cb9363abf70edb92f30f0d3fee0b4bbbf5eaa51abd6ab87ce494ba",
+          "crlf": "61df0cd4037c5a009907f21f5d83d240ef3b5a157232c18b876888b5575003e6"
+        },
+        "D/common.py": {
+          "lf": "394c4e7d0f4802dc24d5df2cc015b1a137bae0120f97bc2294fbc5fb6d2bad16",
+          "crlf": "9f0f264619a0c3f5cda6ace7a2e93e00ba6f52d5d7ced9323696c1cebc9ce627"
+        },
+        "D/models.py": {
+          "lf": "4835108e8924f12e88878907c9f4c0d1384120799487576fe54d0ac7e2c05273",
+          "crlf": "0f3a5c51a5f8fec37cafa00d6db0f88ae7a498a6ea9efe1d5f178e753d81dec2"
+        },
+        "D/prepare_rgb.py": {
+          "lf": "5c928ec3d9993a4a6c699d70b5f1a3f80f361f061b55371703d7794ec5343b67",
+          "crlf": "22a77f31f6bd4aed8fb8098b4ee2b4dcb057e25a88783dffb07bcbfe8008166c"
+        },
+        "D/unpaired/__init__.py": {
+          "lf": "1466d09386f78ffbd8d8a5d6d3695c36ca074b5d9faa5dce7e8368364f19b01d",
+          "crlf": "f581bc5e0b24bae7bb907c13bf8e7c950161206c679285cc621ab480f1a52397"
+        },
+        "D/unpaired/checkpoint.py": {
+          "lf": "958eafcd995058ff4d35d0df9fdf42c4239f5cee9b23cfc79bc344c25f597146",
+          "crlf": "24fa563686b1e9997e392f9da3b4c419dc3d652d8b02bbddeea1dbe14a085460"
+        },
+        "D/unpaired/data.py": {
+          "lf": "cb94913fc27dcab5c7b7556fe5a6edba478e10a24b8aca796a4c3cf7b9c51108",
+          "crlf": "e7d9cf1d39565d94ccd4f871320f0df65564cd7240e8fcc3750c077c051ea849"
+        },
+        "D/unpaired/engine.py": {
+          "lf": "d97d0112b47ff574f764e526c18c9fe37fe52208a9de4af401e374a454eca0a3",
+          "crlf": "b84bad5255ecbae4b10a9e795948bed6ea5a0d7807dcca5dbca02f4b4bcde540"
+        },
+        "D/unpaired/losses.py": {
+          "lf": "d54d5f4b496814a2a499f191e3d3010576f0d7784cd280f08ea4f05e2e642d25",
+          "crlf": "089519fc3191c4b4c8d6d284269f7b0a5d896211eadfe2aed8d1dc34569bed75"
+        },
+        "D/unpaired/model.py": {
+          "lf": "619c1de53eb5d414f62e0e4a1e33dc71162b9b21ae88482968caf91f2757f5fb",
+          "crlf": "2858ed338550597d7f99e0481408848208af947c34b0d6dae27783daf476dce0"
+        },
+        "D/unpaired/protocol.py": {
+          "lf": "08a1bbe00c9edec92a6567b5797ea3f69a4a34e883a6880257eb53baedf42226",
+          "crlf": "72c3d4e81215b9e6bf3d47665572e9cb17517a1bf7dab5d917aedc799fe0f451"
+        },
+        "D/unpaired/report.py": {
+          "lf": "ab33cbb04baedc79497d0b009bbad16d3b41ca5d2c60c9c0d86ea5b78bd37d70",
+          "crlf": "de926b64b771795e25aeeab11ad3c5e83cbd43d1ec8ff392eeaa075d74d3a6f7"
+        },
+        "D/unpaired/semantics.py": {
+          "lf": "d67a500e341a9c3a982610de508d4e312a5f8b3ee852253ad9672029df488fe3",
+          "crlf": "bfc008641cc66c8c32677fedd96c6e42ac2854371f0d433e9a72a0f4ebc3bb19"
+        },
+        "D/unpaired/train.py": {
+          "lf": "6604f7c4d9e5a2c0796cd7e0ac5994ef166fdaddec7e30994727361333ed7733",
+          "crlf": "a5194c9a9ac298be4310e58bb8e566145ebb40d8ca4e91792cbf9fb79dcf53e7"
+        },
+        "pytorch-CycleGAN-and-pix2pix/data/grouped_unaligned_dataset.py": {
+          "lf": "f7095d486c42171b8f6a82f63ceb5f08592d03aa3231a5006315390d9b4c211b",
+          "crlf": "9724483bca34f8fea038c09448794b4fb9b39e0be3a96bd7ad990ee3620693c9"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/clarity_semantic_edges.py": {
+          "lf": "d4a219484d320b64c99c20dd7ad20e1bccda52fdb1b981951ffe9f5be382d59c",
+          "crlf": "e9114ed388c0aa4d7b3ec43ad064e185b47738c28138ffebacc662c626af1e53"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/learned_color_prior.py": {
+          "lf": "87c0f8f5279f51a4042aadcbe83f06b790708bf9097e1e6133d3b184998cb6f4",
+          "crlf": "d8b6c6de88807a72c4596264537a6f957fbff6b8a019ea8d3ee541fc1df0897e"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/networks.py": {
+          "lf": "d604b6cb4bb283906b22a78a4d3a9e29379df75e6a9d9a038bef3981fa38c884",
+          "crlf": "553649b14664cdf0d216161ec305dc23dc778b27d7af3ee32d240936fcb6527c"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/saliency_edges.py": {
+          "lf": "9b94c40e00db29bf0ff9e9353c21ef4a748273392d49dd91d3f419561c45af6c",
+          "crlf": "0e7aad9f1b5de1395f1a5a2d20faa33f32be0f1a7574181c9032cd1ee95fb20e"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/selective_semantic_edges.py": {
+          "lf": "0ad7507bb6f016e8cacae4ebdcc2bf54cfba5c4817b140c50fb555c9056e5f4a",
+          "crlf": "4b3379cafc5e7de713d4363d61167a42b6062e70afddf3585931e0c1cec62d2c"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/semantic_contour.py": {
+          "lf": "7a3bbf49f31bf053c33ef68ede9571b202ab21ac0aed7daae05a1e00a97f8723",
+          "crlf": "60298e745e8e5090da6927f601dac9bda545906c9348198d8e00bf0b36fff293"
+        },
+        "pytorch-CycleGAN-and-pix2pix/models/semantic_edges.py": {
+          "lf": "62de1e27bf75439f68a54825edbb62e6cb9dd5834a20d3bbcb81ee9dacbe018f",
+          "crlf": "462e17f2de696fa6a104ce54a6871c69200ae1d9e9a73d547a5d653c5977998b"
+        },
+        "scripts/semantic_preview/_vendor/mix_transformer.py": {
+          "lf": "b0b1232f3ada7934a65e6b98dec2238c1d5c38eec12dbe5d852c049861244350",
+          "crlf": "e94e321c0bb22e7a32598dda1809f86921ef8fdef2e4c710a085f8af2d396c58"
+        },
+        "scripts/semantic_preview/checkpoint.py": {
+          "lf": "219650e618a11bb665226d437115812fcd6a8796f74f0bc864babf0ed01c4669",
+          "crlf": "0d1099c5af1edfa405da718a2160474c3b462906a62ceb106da0d8a48418c856"
+        },
+        "scripts/semantic_preview/inference.py": {
+          "lf": "3fd8152422988ea266ab4001db0d278d0aed0f437df8f4859b938ed00f30965e",
+          "crlf": "e2c1aa936f5960df586de98fca717e947dbdaf2ff523a2ae317a14a23f1ac6be"
+        },
+        "scripts/semantic_preview/model.py": {
+          "lf": "eda229a3401592778a2888014fcf16003adf02134f6deaa5e55599490aba5087",
+          "crlf": "f0c16af9df0f0538dfb977ac02f8ebca0ee81a46958afa3faf1fbac5a93dcf12"
+        }
+      }
+    }
+  }
+}

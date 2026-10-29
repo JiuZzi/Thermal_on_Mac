@@ -19,7 +19,9 @@ from D.common import sha256, read_json, write_json
 def capture_rng():
     nr = np.random.get_state()
     return dict(cpu_rng=torch.get_rng_state(),
-                cuda_rng=torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+                # CPU-only checks must not initialize a CUDA context just
+                # because this machine also has an available NVIDIA GPU.
+                cuda_rng=torch.cuda.get_rng_state() if torch.cuda.is_initialized() else None,
                 python_rng=random.getstate(),
                 numpy_rng=dict(name=nr[0], keys=torch.tensor(nr[1].astype(np.int64)), position=nr[2],
                                has_gauss=nr[3], cached_gauss=nr[4]))
@@ -60,22 +62,38 @@ def save(folder, step, engine, streams, *, kind="archive", metadata=None):
     directories = dict(archive="checkpoints", recovery="recovery", emergency="emergency")
     if kind not in directories:
         raise ValueError("Unknown checkpoint kind")
+    if type(step) is not int or step < 0:
+        raise ValueError("Checkpoint update count must be a nonnegative integer")
+    if getattr(engine, "phase", "ready") == "commit":
+        raise ValueError("Refuse checkpoint during an uncertain optimizer commit")
+    engine_state = engine.state()
+    engine.validate_state(engine_state)
     name = f"step_{step:06d}" + (f"_{time.time_ns()}" if kind != "archive" else "")
     target = folder / directories[kind] / name
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         raise ValueError("Preserve existing checkpoint")
     pending = Path(tempfile.mkdtemp(prefix=f".step_{step:06d}_", dir=target.parent))
-    save_file(_finite_state(engine.generator.export_state()), str(pending / "generator.safetensors"))
-    save_file(_finite_state(engine.reverse.state_dict()), str(pending / "reverse.safetensors"))
-    save_file(_finite_state(engine.critics.state_dict()), str(pending / "critics.safetensors"))
-    torch.save(dict(step=step, engine=engine.state(), streams={k:v.state() for k,v in streams.items()},
-                    **capture_rng()), pending / "training.pt")
-    files = {p.name:sha256(p) for p in pending.iterdir()}
-    write_json(pending / "checkpoint.json", dict(format="D_unpaired_checkpoint_v1", step=step,
-               run_sha256=sha256(folder / "run.json"), files=files, kind=kind, metadata=metadata))
-    pending.rename(target)
-    write_json(folder / "latest.json", dict(step=step, checkpoint=target.relative_to(folder).as_posix()))
+    try:
+        save_file(_finite_state(engine.generator.export_state()), str(pending / "generator.safetensors"))
+        save_file(_finite_state(engine.reverse.state_dict()), str(pending / "reverse.safetensors"))
+        save_file(_finite_state(engine.critics.state_dict()), str(pending / "critics.safetensors"))
+        torch.save(dict(step=step, engine=engine_state, streams={k:v.state() for k,v in streams.items()},
+                        **capture_rng()), pending / "training.pt")
+        files = {p.name:sha256(p) for p in pending.iterdir()}
+        write_json(pending / "checkpoint.json", dict(format="D_unpaired_checkpoint_v1", step=step,
+                   run_sha256=sha256(folder / "run.json"), files=files, kind=kind, metadata=metadata))
+        pending.rename(target)
+        write_json(folder / "latest.json", dict(step=step, checkpoint=target.relative_to(folder).as_posix()))
+    except BaseException:
+        # Only this call's uncommitted temporary directory is disposable. Keep
+        # complete snapshots and the previous latest pointer intact on failure.
+        if pending.exists():
+            try:
+                shutil.rmtree(pending)
+            except OSError:
+                pass
+        raise
     if kind == "recovery":
         try:
             _prune_recovery(folder)
@@ -117,12 +135,21 @@ def verify(folder, checkpoint):
 
 def restore(folder, checkpoint, engine, streams):
     header = verify(folder, checkpoint)
-    engine.generator.import_state(load_file(str(checkpoint / "generator.safetensors"), device="cpu"))
-    engine.reverse.load_state_dict(load_file(str(checkpoint / "reverse.safetensors")), strict=True)
-    engine.critics.load_state_dict(load_file(str(checkpoint / "critics.safetensors")), strict=True)
     state = torch.load(checkpoint / "training.pt", map_location="cpu", weights_only=True)
     if state["step"] != header["step"]:
         raise ValueError("Checkpoint update counts differ")
+    engine.validate_state(state["engine"])
+    # Validate all learned tensors before mutating the live networks. A legacy
+    # checkpoint can have valid file hashes yet contain nonfinite tensors.
+    learned = {name: _finite_state(load_file(str(checkpoint / f"{name}.safetensors"), device="cpu"))
+               for name in ("generator", "reverse", "critics")}
+    for name, expected in (("generator", engine.generator.export_state()),
+                           ("reverse", engine.reverse.state_dict()), ("critics", engine.critics.state_dict())):
+        if set(learned[name]) != set(expected) or any(learned[name][k].shape != v.shape for k, v in expected.items()):
+            raise ValueError(f"Checkpoint tensor keys/shapes changed: {name}")
+    engine.generator.import_state(learned["generator"])
+    engine.reverse.load_state_dict(learned["reverse"], strict=True)
+    engine.critics.load_state_dict(learned["critics"], strict=True)
     engine.restore(state["engine"])
     for key, stream in streams.items():
         stream.restore(state["streams"][key])

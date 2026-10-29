@@ -8,6 +8,7 @@ import sys
 from PIL import Image
 
 from D.common import ROOT, read_json, sha256, select_sources
+from D.metric_inputs import rgb_reference_rows
 from .protocol import DEFAULT_MANIFEST
 
 
@@ -40,16 +41,16 @@ def main():
             parser.error("Source or generated image changed")
     if args.output_dir.exists():
         parser.error("Preserve existing metrics; choose a new output-dir")
+    references = rgb_reference_rows(read_json(args.data_manifest), phase)
     args.output_dir.mkdir(parents=True)
     tir_dir, rgb_dir = args.output_dir / "inputs_TIR", args.output_dir / "reference_RGB"
     tir_dir.mkdir(); rgb_dir.mkdir()
     for row in sources:
         with Image.open(row["path"]) as image:
             image.convert("L").save(tir_dir / f"{row['stem']}.png")
-    for row in read_json(args.data_manifest)["domains"]["A"]:
-        if row["split"] == phase:
-            with Image.open(args.data_manifest.parent / row["image"]) as image:
-                image.convert("RGB").save(rgb_dir / f"{Path(row['image']).stem}.png")
+    for row in references:
+        with Image.open(args.data_manifest.parent / row["image"]) as image:
+            image.convert("RGB").save(rgb_dir / f"{Path(row['image']).stem}.png")
     code = "import runpy,sys,torch; script=sys.argv.pop(1); torch.manual_seed(42); runpy.run_path(script,run_name='__main__')"
     subprocess.run([sys.executable,"-u","-c",code,str(ROOT / "scripts/evaluate_distribution.py"),
         "--tir-dir",str(tir_dir),"--generated-dir",str(args.prediction_dir / "images"),"--generated-suffix","_fake_B.png",

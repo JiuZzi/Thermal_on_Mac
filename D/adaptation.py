@@ -42,7 +42,10 @@ def apply_state(controlnet, state):
 
 def save_adapter(controlnet, path):
     from safetensors.torch import save_file
-    save_file(partial_state(controlnet), str(path))
+    state = partial_state(controlnet)
+    if any(not torch.isfinite(value).all() for value in state.values()):
+        raise ValueError("Refuse to save nonfinite ControlNet adapter weights")
+    save_file(state, str(path))
 
 
 def load_adapter(controlnet, path):

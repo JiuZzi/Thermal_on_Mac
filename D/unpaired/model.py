@@ -268,11 +268,9 @@ class FormalGenerator(nn.Module):
             result = self.vae.decode(latent / self.vae.config.scaling_factor).sample
         # Clamping must not hide +/-inf from a failed low-precision decode.
         if not torch.isfinite(result).all():
-            raise FloatingPointError("Nonfinite VAE decoder output before RGB clamping")
+            raise FloatingPointError("Nonfinite VAE decoder output before output clamping; inspect model/precision")
         if result.shape != (x.shape[0], 3, *x.shape[-2:]):
             raise ValueError("Generated RGB geometry changed")
-        if not torch.isfinite(result).all():
-            raise FloatingPointError("Nonfinite decoded RGB before output clamping; inspect model/precision")
         if self.fusion.collect_diagnostics:
             self.output_diagnostics = dict(decoder_saturated_fraction=(result.detach().abs() > 1).float().mean(),
                                            decoder_abs_max=result.detach().float().abs().max())

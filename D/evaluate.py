@@ -8,6 +8,7 @@ import sys
 from PIL import Image
 
 from .common import ROOT, read_json, select_sources, sha256
+from .metric_inputs import rgb_reference_rows
 
 
 def main():
@@ -43,16 +44,16 @@ def main():
                 parser.error("A generated image changed after inference")
     # Materialize this exact split using copies. No move/delete/link to the dataset.
     source_data = read_json(args.data_manifest)
+    references = rgb_reference_rows(source_data, phase)
     args.output_dir.mkdir(parents=True)
     tir_dir, rgb_dir = args.output_dir / "inputs_TIR", args.output_dir / "reference_RGB"
     tir_dir.mkdir(); rgb_dir.mkdir()
     for row in rows:
         with Image.open(row["path"]) as im:
             im.convert("L").save(tir_dir / f"{row['stem']}.png")
-    for row in source_data["domains"]["A"]:
-        if row["split"] == phase:
-            with Image.open(args.data_manifest.parent / row["image"]) as im:
-                im.convert("RGB").save(rgb_dir / f"{Path(row['image']).stem}.png")
+    for row in references:
+        with Image.open(args.data_manifest.parent / row["image"]) as im:
+            im.convert("RGB").save(rgb_dir / f"{Path(row['image']).stem}.png")
     code = "import runpy,sys,torch; script=sys.argv.pop(1); torch.manual_seed(42); runpy.run_path(script,run_name='__main__')"
     for variant in run["variants"]:
         command = [sys.executable, "-u", "-c", code, str(ROOT / "scripts/evaluate_distribution.py"),
