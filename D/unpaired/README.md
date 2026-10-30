@@ -1,5 +1,7 @@
 # D：真实 TIR 无配对扩散训练
 
+**2026-10-30 验证集 best：**新增完整验证集选模、可恢复的指标评估和 `infer --best/--best-file`。主规则为 Edge-F1 最高，同分比较 FID/KID；同时记录结构、FID、KID 三个最优候选。使用 `--validation-cache` 显式启用，不改变训练轮数、学习率或损失。已有五轮结果可以直接登记，无需重训。命令及选择依据见 [BEST_CHECKPOINTS.md](BEST_CHECKPOINTS.md)。
+
 **2026-10-29整合修复：**已恢复三行训练日志、ETA/显存与完整诊断，接回V2可靠性平滑，并加固提交边界、检查点验证及磁盘失败处理。D系列73项＋共享105项检查通过。旧run采用完整状态迁移，具体步骤和验证边界见 [HARDENING_20261029.md](HARDENING_20261029.md)。
 
 **2026-10-28稳定性修复：**轮廓损失在平坦区域的零方差sqrt梯度问题已修复，新增同批次重试、每100步完整恢复快照及异常保存。已运行的旧实验需要使用受校验的完整状态迁移，具体命令见 [STABILITY_FIX_20261028.md](STABILITY_FIX_20261028.md)，不应直接改旧run.json绕过恢复检查。
@@ -182,7 +184,7 @@ Start-Process "$thermalRoot\runs\D\unpaired\training\D_tir_unpaired_clarity_pilo
 
 沿用 `scripts/evaluate_distribution.py`：FID、KID(mean/std，subset50×100，seed42)、APCE-Py、edge precision/recall/F1，Canny sigma1.0；输出JSON、逐阈值CSV、PNG、PDF。不做无配对图像PSNR/SSIM。APCE-Py是项目原有scikit-image实现，非PearlGAN官方MATLAB数值。test112对RGB696有小样本波动，应与相同划分和指标环境比较。
 
-先看人车数量/位置/肢体、道路、建筑边界，再看颜色和割裂。场景错位时FID下降不算通过。E、P、Q都有误差，热图不能唯一决定真实颜色。此实现没有自动选出的best；latest指最后完整检查点。
+先看人车数量/位置/肢体、道路、建筑边界，再看颜色和割裂。场景错位时FID下降不算通过。E、P、Q都有误差，热图不能唯一决定真实颜色。`latest` 指最后完整检查点；显式传入完整 `--validation-cache` 后会自动登记 `best.json`。默认12张预览只用于观察，不参与best选择，详见 [BEST_CHECKPOINTS.md](BEST_CHECKPOINTS.md)。
 
 从服务器导出后在本地测试时，保留原run的 `run.json`、`latest.json` 及所选 `checkpoints/step_XXXXXX/` **完整目录**，不要把其中某个文件改名成GAN的 `.pth`。验证校验需要该目录的 `checkpoint.json`、三个 `.safetensors` 和 `training.pt`。本地再按相同配方准备test缓存；不必下载全部中间检查点。
 

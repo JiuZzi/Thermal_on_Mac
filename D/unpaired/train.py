@@ -50,6 +50,8 @@ def validate_recovery(parent, identity):
     for key in ("config", "data", "prior_sha256", "versions", "initialization"):
         if parent[key] != identity[key]:
             raise ValueError(f"Full recovery must preserve {key}; use a new warm-start experiment for intentional changes")
+    if parent.get("validation") != identity.get("validation"):
+        raise ValueError("Full recovery must preserve validation/best policy; register old results separately")
     for key in ("steps", "save_every", "log_every", "preview_every"):
         if parent["schedule"][key] != identity["schedule"][key]:
             raise ValueError(f"Full recovery must preserve original {key}")
@@ -92,11 +94,12 @@ def _copy_recovery_baseline(parent, folder, cache_sha):
                source=Path(os.path.relpath(source, ROOT)).as_posix()))
 
 
-def run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_data=None, *, log=None):
+def run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_data=None, *, log=None, validation=None):
     """Retry the same batch; only committed updates advance the counter."""
     if log is None:
         with TrainingLog(folder, details=getattr(args, "log_details", False)) as owned_log:
-            return run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_data, log=owned_log)
+            return run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_data,
+                               log=owned_log, validation=validation)
     from .report import preview
     baseline = folder / "previews/step_000000"
     start_step = step
@@ -105,6 +108,9 @@ def run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_dat
     pending = None
     last_event = None
     try:
+        # A stopped validation resumes at the already saved update, before taking another batch.
+        if validation is not None and validation.due(step, args.steps):
+            validation.run(engine, step, log)
         while step < stop_at:
             pending = dict(streams={k:v.state() for k,v in streams.items()},
                            rng=checkpoints.capture_rng(), engine=engine.retry_state())
@@ -136,7 +142,8 @@ def run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_dat
                 row.update(step=step, total_steps=args.steps, epoch_equivalent=step/max(len(tir_data),len(rgb_data)),
                            lr_diffusion=engine.opt_g.param_groups[0]["lr"])
                 log.metrics(row)
-            if step % args.save_every == 0 or step == args.steps:
+            validation_due = validation is not None and validation.due(step, args.steps)
+            if step % args.save_every == 0 or step == args.steps or validation_due:
                 tick = time.perf_counter()
                 log.event("SAVE", f"Writing complete checkpoint at update {step}...")
                 log.event("SAVED", f"{checkpoints.save(folder, step, engine, streams)} | {duration(time.perf_counter()-tick)}")
@@ -148,6 +155,8 @@ def run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_dat
                 preview(engine.generator, val_data, folder / "previews" / f"step_{step:06d}",
                         baseline=baseline if (baseline / "status.json").is_file() else None,
                         metadata=dict(run_sha256=sha256(folder / "run.json"), step=step), log=log)
+            if validation_due:
+                validation.run(engine, step, log)
     except (NumericalFailure, KeyboardInterrupt) as error:
         report = dict(step=step, total=args.steps, reason=str(error),
                       numerical=getattr(error,"report",None), previous_event=last_event)
@@ -240,6 +249,8 @@ def execute(args):
     legacy_models()
     from data.grouped_unaligned_dataset import validate_prior_partitions
     validate_prior_partitions(read_json(args.data_manifest), args.data_manifest.parent, args.prior)
+    from .validation import validation_identity, TrainingValidation
+    validation_plan = validation_identity(args, data["source"])
     folder = DEFAULT_RUNS / args.name
     previous = read_json(folder / "run.json") if args.resume else None
     if args.resume and (args.init_rgb_run or args.init_tir_checkpoint or args.recover_from_checkpoint):
@@ -282,6 +293,8 @@ def execute(args):
                               "numpy", "scipy", "scikit-image", "Pillow", "safetensors")},
                     limits="Unpaired research model; no guarantee of true RGB colors or exact geometry; "
                            "seed42; unsupported deterministic CUDA kernels warn; pretrained RGB data is an extra prior")
+    if validation_plan is not None:
+        identity["validation"] = validation_plan
     if recovery_path is not None:
         validate_recovery(parent_identity,identity)
         if recovery["step"] > args.steps:
@@ -291,6 +304,9 @@ def execute(args):
         event("CONFIG", f"{config['format']} | {config['width']}x{config['height']} | seed=42"
               f" | DDIM={int(config['sampling_steps']*config['strength'])} actual steps | target={args.steps} updates")
         event("INIT", initialization["kind"])
+        if validation_plan is not None:
+            event("VALIDATE", f"full val TIR={validation_plan['num_tir']} RGB={validation_plan['num_rgb']}"
+                  f" | every={validation_plan['every']} | best policy={validation_plan['policy']}")
         if getattr(args, "log_details", False):
             event("DETAIL", json.dumps(dict(config=config, initialization=initialization), ensure_ascii=True))
         return
@@ -368,7 +384,8 @@ def execute(args):
         if val_data is not None and step == 0:
             preview(generator, val_data, baseline, resume=baseline.exists(),
                     metadata=dict(run_sha256=sha256(folder / "run.json"), step=0), log=log)
-        run_updates(args,folder,engine,streams,tir_data,rgb_data,step,val_data,log=log)
+        validation = TrainingValidation(folder, args, validation_plan) if validation_plan is not None else None
+        run_updates(args,folder,engine,streams,tir_data,rgb_data,step,val_data,log=log,validation=validation)
 
 
 def main():
@@ -385,6 +402,14 @@ def main():
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument("--log-details", action="store_true", help="Print all numeric diagnostics as well; always recorded in loss.jsonl")
     parser.add_argument("--preview-every", type=int, default=250)
+    parser.add_argument("--validation-cache", type=Path,
+                        help="Enable best selection using a completed FULL validation cache, never the 12-image preview")
+    parser.add_argument("--validation-every", type=int, default=0,
+                        help="Successful updates between full validation; 0 uses --save-every")
+    parser.add_argument("--validation-device", choices=("cpu", "cuda"), default="cpu",
+                        help="Metric device; CPU avoids competing with the live training model for VRAM")
+    parser.add_argument("--best-policy", choices=("structure", "fid", "kid"), default="structure",
+                        help="Primary best: Edge-F1 first by default; also retain FID and KID winners")
     parser.add_argument("--recovery-every", type=int, default=100, help="Keep the last two full recovery snapshots, in addition to archival epochs")
     parser.add_argument("--verify-updates", type=int, default=0, help="Stop after N committed updates without changing the original training horizon; --resume continues")
     parser.add_argument("--resume", action="store_true")

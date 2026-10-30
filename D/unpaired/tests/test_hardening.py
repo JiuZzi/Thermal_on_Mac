@@ -183,7 +183,8 @@ class CheckpointHardeningTests(unittest.TestCase):
             folder = Path(temporary)
             engine, streams = self.fixture(folder)
             saved = checkpoint.save(folder, 0, engine, streams)
-            state = load_file(str(saved / "reverse.safetensors"))
+            # Windows cannot overwrite a file while safetensors still maps it.
+            state = {key:value.clone() for key,value in load_file(str(saved / "reverse.safetensors")).items()}
             state["weight"].fill_(float("inf"))
             save_file(state, str(saved / "reverse.safetensors")); self.refresh_header(saved, "reverse.safetensors")
             with torch.no_grad(): engine.generator.weight.add_(2)
