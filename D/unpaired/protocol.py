@@ -20,10 +20,12 @@ DEFAULT_MANIFEST = ROOT / "runs/learned_color/data_seed42_v1/cycle_manifest.json
 
 def config_from(path=DEFAULT_CONFIG):
     config = read_json(path)
-    if config.get("format") not in ("D_unpaired_v1", "D_unpaired_v2") or config.get("seed") != 42:
+    from .quality import FORMAT, EXTRA_LOSSES, QUALITY_KEYS
+    quality_v3 = config.get("format") == FORMAT
+    if config.get("format") not in ("D_unpaired_v1", "D_unpaired_v2", FORMAT) or config.get("seed") != 42:
         raise ValueError("Formal D uses the versioned seed42 configuration")
     policies = {"fusion_policy", "fusion_min_quality", "chroma_smooth_policy"}
-    if config["format"] == "D_unpaired_v2":
+    if config["format"] in ("D_unpaired_v2", FORMAT):
         if (not policies.issubset(config) or config["fusion_policy"] not in ("legacy", "quality_masked") or
             config["chroma_smooth_policy"] not in ("legacy", "quality_soft") or
             not isinstance(config["fusion_min_quality"], (int, float)) or not 0 <= config["fusion_min_quality"] <= 1):
@@ -46,6 +48,28 @@ def config_from(path=DEFAULT_CONFIG):
     if type(config.get("lora_rank")) is not int or config["lora_rank"] < 0:
         raise ValueError("lora_rank must be a nonnegative integer")
     expected_losses = {"adversarial", "cycle_tir", "cycle_rgb", "edge", "content", "semantic", "color_prior", "chroma_smooth", "rgb_replay"}
+    if quality_v3:
+        expected_losses |= EXTRA_LOSSES
+        settings = config.get("quality", {})
+        if set(settings) != QUALITY_KEYS or settings["decoder_policy"] not in ("hard", "straight_through"):
+            raise ValueError("Specify the complete documented D-v3 quality policy")
+        for key in ("boundary_context", "split_gradient_clip"):
+            if type(settings[key]) is not bool:
+                raise ValueError(f"quality.{key} must be boolean")
+        for key in ("appearance_every", "gradient_probe_every", "structure_tolerance"):
+            if type(settings[key]) is not int or settings[key] < 1:
+                raise ValueError(f"Invalid quality.{key}")
+        if settings["structure_tolerance"] > 8:
+            raise ValueError("Use a structural tolerance <=8 pixels")
+        for key in ("appearance_rgb", "appearance_chroma", "appearance_detail", "source_residual_rms_limit"):
+            if type(settings[key]) not in (int, float) or not math.isfinite(settings[key]) or settings[key] < 0:
+                raise ValueError(f"Invalid quality.{key}")
+        if type(settings["structure_min_quality"]) not in (int, float) or not 0 < settings["structure_min_quality"] <= 1:
+            raise ValueError("quality.structure_min_quality must be in (0,1]")
+        if config["loss_weights"].get("rgb_appearance", 0) and not sum(settings[k] for k in ("appearance_rgb", "appearance_chroma", "appearance_detail")):
+            raise ValueError("Active RGB appearance requires at least one component")
+    elif "quality" in config:
+        raise ValueError("Use D_unpaired_v3 for quality objectives; preserve legacy runs")
     if set(config.get("loss_weights", {})) != expected_losses:
         raise ValueError("Specify all documented formal-D losses; set a weight to zero for ablations")
     for key, value in config["loss_weights"].items():
@@ -64,7 +88,7 @@ def config_from(path=DEFAULT_CONFIG):
     for key in ("semantic_min_quality", "color_min_quality"):
         if not 0 <= config[key] <= 1:
             raise ValueError(f"Invalid {key}")
-    if config["loss_weights"]["color_prior"] and config["color_min_quality"] <= 0:
+    if (config["loss_weights"]["color_prior"] or config["loss_weights"].get("color_attraction", 0)) and config["color_min_quality"] <= 0:
         raise ValueError("Active color prior requires color_min_quality in (0,1]")
     for key in ("base_revision", "control_revision"):
         if len(config[key]) != 40 or any(c not in "0123456789abcdef" for c in config[key]):

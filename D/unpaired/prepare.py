@@ -93,7 +93,7 @@ def main():
                   contour_variant="clarity_v1", settings=CLARITY_SETTINGS,
                   rgb_probability_policy=PROBABILITY_POLICY,
                   code_sha256={p:sha256(ROOT / p) for p in EDGE_SOURCES})
-    if config["format"] == "D_unpaired_v2":
+    if config["format"] in ("D_unpaired_v2", "D_unpaired_v3"):
         recipe["condition_pipeline"] = condition_pipeline_identity()
         recipe["code_sha256"] = {p:recipe["condition_pipeline"]["code_sha256"][p] for p in EDGE_SOURCES}
     identity = json.loads(json.dumps(dict(dataset_id=data.get("dataset_id"), seed=42,

@@ -42,7 +42,7 @@ def code_identity():
     files = [Path(__file__), Path(__file__).with_name('edge_use.py'), ROOT/'D/common.py', ROOT/'D/models.py',
         ROOT/'D/preview.py', ROOT/'D/unpaired/model.py', ROOT/'D/unpaired/protocol.py', ROOT/'D/unpaired/losses.py',
         ROOT/'D/unpaired/data.py', ROOT/'D/unpaired/checkpoint.py', ROOT/'D/unpaired/semantics.py',
-        ROOT/'D/unpaired/report.py', ROOT/'D/adaptation.py',
+        ROOT/'D/unpaired/report.py', ROOT/'D/unpaired/quality.py', ROOT/'D/adaptation.py',
         ROOT/'pytorch-CycleGAN-and-pix2pix/models/learned_color_prior.py']
     return {p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes().replace(b'\r\n', b'\n')).hexdigest() for p in files}
 

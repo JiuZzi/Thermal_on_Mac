@@ -117,6 +117,8 @@ def run_updates(args, folder, engine, streams, tir_data, rgb_data, step, val_dat
             tir = on_device(tir_data[streams["TIR"].next()], engine.device)
             rgb = on_device(rgb_data[streams["RGB"].next()], engine.device)
             logging = step == start_step or (step+1) % args.log_every == 0 or step+1 == stop_at
+            if getattr(engine, "quality_v3", False) and (step+1) % engine.config["quality"]["gradient_probe_every"] == 0:
+                logging = True
             # A rejected attempt restores engine RNG/pools and halves AMP scale.
             # Do not sample another image or another noise realization here.
             while True:
@@ -215,7 +217,7 @@ def resolve_rgb_init(path):
     return path.resolve()
 
 
-def source_hashes():
+def source_hashes(*, quality=False):
     names = ("__init__.py", "protocol.py", "model.py", "losses.py", "data.py", "semantics.py",
              "engine.py", "checkpoint.py", "report.py", "train.py")
     paths = [*[ROOT / "D/unpaired" / name for name in names], ROOT / "D/common.py",
@@ -225,6 +227,8 @@ def source_hashes():
               "pytorch-CycleGAN-and-pix2pix/models/networks.py",
               "pytorch-CycleGAN-and-pix2pix/data/grouped_unaligned_dataset.py")]
     paths.append(ROOT / RECOVERY_SOURCES)
+    if quality:
+        paths.append(ROOT / "D/unpaired/quality.py")
     return {p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
             for p in sorted(paths)}
 
@@ -265,6 +269,14 @@ def execute(args):
             raise ValueError("Choose one initialization")
         old_folder = args.init_tir_checkpoint.parent.parent
         header = checkpoints.verify(old_folder, args.init_tir_checkpoint)
+        if config["format"] == "D_unpaired_v3":
+            parent = read_json(old_folder / "run.json")
+            keys = ("format", "quality", "sampling_steps", "strength", "guidance_scale", "lora_rank",
+                    "semantic_width", "semantic_gate", "use_semantic", "use_color", "fusion_policy",
+                    "fusion_min_quality", "chroma_smooth_policy", "base_revision", "control_revision")
+            if (any(parent["config"].get(key) != config.get(key) for key in keys) or
+                parent["prior_sha256"] != sha256(args.prior) or parent["data"]["source"] != data["source"]):
+                raise ValueError("D-v3 requires its matching signed forward recipe; initialize a new V3 run from RGB warm-up, not old V1/V2 weights")
         initialization = dict(kind="formal D warm start; optimizer/RNG/pools reset",
                               checkpoint=Path(os.path.relpath(args.init_tir_checkpoint.resolve(),ROOT)).as_posix(), files=header["files"])
     if previous:
@@ -287,7 +299,8 @@ def execute(args):
     identity = dict(format="D_unpaired_run_v1", config=config, data=data,
                     prior_sha256=sha256(args.prior), initialization=initialization,
                     schedule=dict(steps=args.steps, save_every=args.save_every, log_every=args.log_every,
-                                  preview_every=args.preview_every, recovery_every=args.recovery_every), code_sha256=source_hashes(),
+                                  preview_every=args.preview_every, recovery_every=args.recovery_every),
+                    code_sha256=source_hashes(quality=config["format"] == "D_unpaired_v3"),
                     numerical_revision=NUMERICAL_REVISION, recovery=recovery,
                     versions={k:metadata.version(k) for k in ("torch", "torchvision", "diffusers", "transformers",
                               "numpy", "scipy", "scikit-image", "Pillow", "safetensors")},

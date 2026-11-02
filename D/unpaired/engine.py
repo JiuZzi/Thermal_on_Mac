@@ -8,6 +8,7 @@ from .semantics import legacy_models
 from .protocol import ReplayPool
 from .checkpoint import capture_rng, restore_rng
 from .losses import edge_preservation, spatial_content, semantic_consistency, chroma_smoothness, lsgan
+from .quality import rgb_appearance, color_attraction, unsupported_structure
 
 
 class NumericalFailure(RuntimeError):
@@ -38,7 +39,10 @@ class UnpairedEngine:
         self.generator, self.reverse, self.critics = generator, reverse, critics
         self.builder, self.rgb_teacher, self.config = builder, rgb_teacher, config
         self.device = device
-        self.params_g = [p for p in generator.parameters() if p.requires_grad] + list(reverse.parameters())
+        self.quality_v3 = config.get("format") == "D_unpaired_v3"
+        self.params_diffusion = [p for p in generator.parameters() if p.requires_grad]
+        self.params_reverse = list(reverse.parameters())
+        self.params_g = self.params_diffusion + self.params_reverse
         self.params_d = list(critics.parameters())
         self.opt_g = torch.optim.AdamW([
             dict(params=[p for p in generator.parameters() if p.requires_grad], lr=config["lr_diffusion"], weight_decay=.0001),
@@ -138,6 +142,30 @@ class UnpairedEngine:
         for group in self.opt_d.param_groups:
             group["lr"] = self.config["lr_discriminator"] * warm * decay
 
+    def _weight(self, key, color_ramp=1.):
+        name = "adversarial" if key.startswith("adversarial") else key
+        if name.startswith("decoder_range"):
+            name = "decoder_range"
+        return self.config["loss_weights"][name] * (color_ramp if name in ("color_prior", "color_attraction") else 1.)
+
+    def _objective_probes(self, terms, losses, *, color_ramp=1.):
+        """Rare, uncommitted gradient observations; no optimizer/RNG changes."""
+        g = self.generator
+        parameters = [g.source.layers[-1].weight, g.controlnet.controlnet_cond_embedding.conv_in.weight,
+                      g.fusion.sem_heads[0].weight, g.fusion.color_heads[0].weight]
+        scale = self.scaler.get_scale()
+        for name, term in terms.items():
+            weight = self._weight(name, color_ramp)
+            if not weight or not term.requires_grad:
+                continue
+            grads = torch.autograd.grad(self.scaler.scale(term * weight), parameters,
+                                        retain_graph=True, allow_unused=True)
+            values = [grad.detach().float().norm() / scale for grad in grads if grad is not None]
+            norm = torch.stack(values).norm() if values else term.new_zeros(())
+            finite = torch.isfinite(norm)
+            losses[f"objective_probe_grad_{name}"] = torch.where(finite, norm, torch.zeros_like(norm))
+            losses[f"objective_probe_grad_{name}_nonfinite"] = (~finite).float()
+
     def _attempt_update(self, tir, rgb, step, total, *, diagnostics=False):
         g, reverse, critics = self.generator, self.reverse, self.critics
         g.fusion.collect_diagnostics = diagnostics
@@ -146,14 +174,21 @@ class UnpairedEngine:
         self._rates(step, total)
         self.opt_g.zero_grad(set_to_none=True)
         losses = {}
+        probe = self.quality_v3 and diagnostics and (step+1) % self.config["quality"]["gradient_probe_every"] == 0
         # First graph: TIR -> RGB -> reconstructed TIR.
         self.phase = "tir_forward"
-        fake_rgb = g(tir["x"], tir["p"], tir["q"], generator=self.noise_rng)
+        if self.quality_v3:
+            fake_rgb, auxiliary = g(tir["x"], tir["p"], tir["q"], generator=self.noise_rng, return_aux=True)
+        else:
+            fake_rgb = g(tir["x"], tir["p"], tir["q"], generator=self.noise_rng)
         self._require_finite(fake_rgb, "tir_forward")
         if diagnostics:
             losses.update(g.fusion.diagnostics)
             losses.update(g.output_diagnostics)
             losses["rgb_replay_active"] = int(bool(weights["rgb_replay"]) and (step+1) % self.config["replay_every"] == 0)
+            if self.quality_v3:
+                losses["rgb_appearance_active"] = int(bool(weights["rgb_appearance"]) and
+                    (step+1) % self.config["quality"]["appearance_every"] == 0)
         real_tir = tir["x"][:, :1] * 2 - 1
         terms = dict(adversarial_rgb=lsgan(critics["RGB"](fake_rgb), True))
         if weights["cycle_tir"]:
@@ -173,20 +208,41 @@ class UnpairedEngine:
             quality = tir["q"] if self.config.get("chroma_smooth_policy", "legacy") == "quality_soft" else None
             terms["chroma_smooth"] = chroma_smoothness(fake_rgb, tir["x"][:,1:2], tir["p"], quality,
                                                       minimum=self.config["semantic_min_quality"])
+        if self.quality_v3:
+            if weights["decoder_range"]:
+                terms["decoder_range"] = auxiliary["decoder_range"]
+            if weights["color_attraction"]:
+                terms["color_attraction"] = color_attraction(g.prior, fake_rgb, tir["p"], tir["q"],
+                                                            self.config["color_min_quality"])
+            if weights["edge_precision"]:
+                terms["edge_precision"] = unsupported_structure(fake_rgb, tir["x"][:, :1], tir["x"][:, 1:2],
+                    tir["p"], tir["q"], tolerance=self.config["quality"]["structure_tolerance"],
+                    minimum=self.config["quality"]["structure_min_quality"])
         color_ramp = min((step+1) / max(1,self.config["color_warmup_steps"]), 1.)
-        loss = sum(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
-                   (color_ramp if key == "color_prior" else 1.) for key,value in terms.items())
+        if self.quality_v3:
+            loss = sum(value * self._weight(key, color_ramp) for key,value in terms.items())
+        else:
+            # Keep the legacy floating-point multiplication order as well.
+            loss = sum(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
+                       (color_ramp if key == "color_prior" else 1.) for key,value in terms.items())
         self._check_losses(terms, "tir_losses", loss)
         losses["G_total"] = loss.detach()
         if diagnostics:
-            losses.update({f"weighted_{key}": (value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
-                          (color_ramp if key == "color_prior" else 1.)).detach() for key, value in terms.items()})
+            if self.quality_v3:
+                losses.update({f"weighted_{key}": (value * self._weight(key, color_ramp)).detach() for key, value in terms.items()})
+            else:
+                losses.update({f"weighted_{key}": (value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
+                              (color_ramp if key == "color_prior" else 1.)).detach() for key, value in terms.items()})
             losses["color_weight"] = weights["color_prior"] * color_ramp
+        if probe:
+            self._objective_probes(terms, losses, color_ramp=color_ramp)
         self.scaler.scale(loss).backward()
         self._check_gradients(self.params_g, "tir_backward")
         losses.update({key:value.detach() for key,value in terms.items()})
         saved_rgb = fake_rgb.detach()
         del fake_rgb, loss, terms
+        if self.quality_v3:
+            del auxiliary
 
         # Second graph: RGB -> synthetic TIR -> reconstructed RGB.
         self.phase = "rgb_reverse_forward"
@@ -196,16 +252,22 @@ class UnpairedEngine:
         if weights["cycle_rgb"]:
             sx, sp, sq = self.builder.synthetic(fake_tir)
             self.phase = "rgb_cycle_forward"
-            reconstructed = g(sx, sp, sq, generator=self.noise_rng)
+            if self.quality_v3:
+                reconstructed, auxiliary = g(sx, sp, sq, generator=self.noise_rng, return_aux=True)
+                if weights["decoder_range"]:
+                    terms["decoder_range_cycle"] = auxiliary["decoder_range"]
+            else:
+                reconstructed = g(sx, sp, sq, generator=self.noise_rng)
             self._require_finite(reconstructed, "rgb_cycle_forward")
             terms["cycle_rgb"] = F.l1_loss(reconstructed, rgb["rgb"])
-        loss = sum(value * (weights["adversarial"] if key.startswith("adversarial") else weights[key])
-                   for key,value in terms.items())
+        loss = sum(value * self._weight(key) for key,value in terms.items())
         self._check_losses(terms, "rgb_cycle_losses", loss)
         losses["G_total"] = losses["G_total"] + loss.detach()
         if diagnostics:
-            losses.update({f"weighted_{key}": (value * (weights["adversarial"] if key.startswith("adversarial") else weights[key])).detach()
+            losses.update({f"weighted_{key}": (value * self._weight(key)).detach()
                            for key, value in terms.items()})
+        if probe:
+            self._objective_probes(terms, losses)
         self.scaler.scale(loss).backward()
         self._check_gradients(self.params_g, "rgb_cycle_backward")
         losses.update({key:value.detach() for key,value in terms.items()})
@@ -213,6 +275,31 @@ class UnpairedEngine:
         del fake_tir, loss, terms
         if weights["cycle_rgb"]:
             del reconstructed, sx, sp, sq
+            if self.quality_v3:
+                del auxiliary
+
+        # Actual RGB-gray -> RGB forward supervision, including SourceAdapter.
+        # This graph uses a known self-pair and is freed before noise replay.
+        if self.quality_v3 and weights["rgb_appearance"] and (step+1) % self.config["quality"]["appearance_every"] == 0:
+            self.phase = "rgb_appearance_forward"
+            appearance, auxiliary = g(rgb["x"], rgb["p"], rgb["q"], generator=self.noise_rng, return_aux=True)
+            self._require_finite(appearance, "rgb_appearance_forward")
+            value, components = rgb_appearance(appearance, rgb["rgb"], self.config["quality"])
+            terms = dict(rgb_appearance=value)
+            if weights["decoder_range"]:
+                terms["decoder_range_rgb"] = auxiliary["decoder_range"]
+            loss = sum(value * self._weight(key) for key, value in terms.items())
+            self._check_losses(terms, "rgb_appearance_losses", loss)
+            losses["G_total"] = losses["G_total"] + loss.detach()
+            losses.update(components)
+            if diagnostics:
+                losses.update({f"weighted_{key}": (value * self._weight(key)).detach() for key, value in terms.items()})
+            if probe:
+                self._objective_probes(terms, losses)
+            self.scaler.scale(loss).backward()
+            self._check_gradients(self.params_g, "rgb_appearance_backward")
+            losses.update({key:value.detach() for key, value in terms.items()})
+            del appearance, auxiliary, terms, loss, value, components
 
         # Replay has its own graph; it never uses a randomly paired RGB target.
         if weights["rgb_replay"] and (step+1) % self.config["replay_every"] == 0:
@@ -240,7 +327,14 @@ class UnpairedEngine:
             for name, module in (("semantic", g.fusion.sem_heads), ("color", g.fusion.color_heads), ("content", g.source)):
                 values = [p.grad.detach().float().square().sum() for p in module.parameters() if p.grad is not None]
                 losses[f"grad_{name}_adapter"] = torch.stack(values).sum().sqrt() if values else tir["x"].sum()*0
-        norm = nn.utils.clip_grad_norm_(self.params_g, self.config["max_grad_norm"])
+        if self.quality_v3 and self.config["quality"]["split_gradient_clip"]:
+            norm_g = nn.utils.clip_grad_norm_(self.params_diffusion, self.config["max_grad_norm"])
+            norm_r = nn.utils.clip_grad_norm_(self.params_reverse, self.config["max_grad_norm"])
+            norm = torch.stack((norm_g, norm_r)).norm()
+            if diagnostics:
+                losses.update(clip_norm_diffusion=norm_g.detach(), clip_norm_reverse=norm_r.detach())
+        else:
+            norm = nn.utils.clip_grad_norm_(self.params_g, self.config["max_grad_norm"])
         self._require_finite(norm, "generator_gradients")
 
         # Independent unpaired domain critics with original-style replay pools.

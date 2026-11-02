@@ -11,6 +11,7 @@ from torch.utils.checkpoint import checkpoint
 from D.adaptation import configure_trainable, load_adapter
 from D.common import sha256, read_json
 from .semantics import legacy_models
+from .quality import bounded_decode, bound_source_residual, structure_quality
 
 
 class LoRALinear(nn.Module):
@@ -64,12 +65,13 @@ class SourceAdapter(nn.Module):
 
 class SemanticColorFusion(nn.Module):
     def __init__(self, controlnet, prior, width=16, *, policy="legacy", min_quality=.1,
-                 semantic_gate=True):
+                 semantic_gate=True, boundary_context=False):
         super().__init__()
         if policy not in ("legacy", "quality_masked") or not 0 <= min_quality <= 1:
             raise ValueError("Invalid semantic/color fusion policy")
         self.prior = prior
         self.policy, self.min_quality, self.semantic_gate = policy, min_quality, semantic_gate
+        self.boundary_context = boundary_context
         self.collect_diagnostics = False
         self.diagnostics = {}
         def encoder(channels):
@@ -84,7 +86,7 @@ class SemanticColorFusion(nn.Module):
         for layer in [*self.sem_heads, *self.color_heads]:
             nn.init.zeros_(layer.weight); nn.init.zeros_(layer.bias)
 
-    def encode(self, p, q, size):
+    def encode(self, p, q, size, edge=None):
         color = self.prior(p, q)
         if self.policy == "quality_masked":
             # Pool only supported observations. Normalizing by support avoids
@@ -95,7 +97,14 @@ class SemanticColorFusion(nn.Module):
                 if self.semantic_gate else self.semantic(F.interpolate(p.float(), size=size, mode="area"))
             gate = color["strength"].float() * valid
             learned = self._masked_encode(self.color, color["features"].float(), gate, size)
-            return semantic, learned, quality, gate
+            if self.boundary_context and edge is not None and self.semantic_gate:
+                trusted = (F.interpolate(quality, size=size, mode="area") > 0).float()
+                mass = F.avg_pool2d(trusted, 3, 1, 1)
+                context = F.avg_pool2d(semantic * trusted, 3, 1, 1) / mass.clamp_min(1e-8)
+                trace = (F.interpolate(edge.detach().float(), size=size, mode="area") > .03).float()
+                semantic = semantic + context * (1 - trusted) * trace
+            sem_quality = structure_quality(quality, edge) if self.boundary_context and edge is not None else quality
+            return semantic, learned, sem_quality, gate
         semantic = self.semantic(F.interpolate(p.float(), size=size, mode="area"))
         learned = self.color(F.interpolate(color["features"].float(), size=size, mode="area"))
         return semantic, learned, q, color["strength"]
@@ -151,6 +160,7 @@ class FormalGenerator(nn.Module):
         from models.semantic_edges import FMB_CLASS_NAMES
         self.unet, self.vae, self.controlnet = pipeline.unet, pipeline.vae, pipeline.controlnet
         self.config = config
+        self.quality_v3 = config.get("format") == "D_unpaired_v3"
         self.rgb_init_info = None
         if rgb_init is not None:
             header = read_json(rgb_init / "checkpoint.json")
@@ -168,10 +178,12 @@ class FormalGenerator(nn.Module):
         self.vae.enable_gradient_checkpointing()
         self.source = SourceAdapter()
         prior = LearnedChromaPrior(prior_path, FMB_CLASS_NAMES,
-                                  require_loss_support=config["loss_weights"]["color_prior"] > 0)
+                                  require_loss_support=(config["loss_weights"]["color_prior"] > 0 or
+                                                        config["loss_weights"].get("color_attraction", 0) > 0))
         self.fusion = SemanticColorFusion(self.controlnet, prior, config["semantic_width"],
             policy=config.get("fusion_policy", "legacy"), min_quality=config.get("fusion_min_quality", .1),
-            semantic_gate=config["semantic_gate"])
+            semantic_gate=config["semantic_gate"],
+            boundary_context=config.get("quality", {}).get("boundary_context", False))
         self.output_diagnostics = {}
         pipeline.text_encoder.float().cpu().eval()
         tokens = pipeline.tokenizer([config["negative_prompt"], config["prompt"]], padding="max_length",
@@ -187,10 +199,13 @@ class FormalGenerator(nn.Module):
             lora_rank=config["lora_rank"], semantic_width=config["semantic_width"],
             prior=prior.metadata, source=source_identity, semantic_gate=config["semantic_gate"],
             use_semantic=config.get("use_semantic", True), use_color=config.get("use_color", True))
-        if config.get("format") == "D_unpaired_v2":
+        if config.get("format") in ("D_unpaired_v2", "D_unpaired_v3"):
             self.identity.update(fusion_policy=config["fusion_policy"],
                                  fusion_min_quality=config["fusion_min_quality"],
                                  chroma_smooth_policy=config["chroma_smooth_policy"])
+        if self.quality_v3:
+            self.identity.update(quality=config["quality"],
+                                 sampling={key:config[key] for key in ("sampling_steps", "strength", "guidance_scale")})
         digest = hashlib.sha256(json.dumps(self.identity, sort_keys=True).encode()).digest()
         self.register_buffer("input_signature", torch.tensor(list(digest), dtype=torch.uint8))
 
@@ -245,14 +260,23 @@ class FormalGenerator(nn.Module):
         return self.unet(latent, timestep, encoder_hidden_states=text,
                          down_block_additional_residuals=down, mid_block_additional_residual=mid).sample
 
-    def forward(self, x, p, q, *, generator=None):
+    def forward(self, x, p, q, *, generator=None, return_aux=False):
         self._validate(x, p, q)
         if generator is None:
             generator = torch.Generator("cpu").manual_seed(42)
         with self._autocast(x):
             latent = self._encode(x[:, :1].repeat(1, 3, 1, 1) * 2 - 1)
-            latent = latent + self.source(x).to(latent.dtype)
-            encoded = self.fusion.encode(p, q, latent.shape[-2:])
+            residual = self.source(x).to(latent.dtype)
+            if self.quality_v3:
+                raw_residual = residual
+                residual = bound_source_residual(residual, self.config["quality"]["source_residual_rms_limit"])
+                if self.fusion.collect_diagnostics:
+                    self.output_diagnostics = dict(
+                        source_latent_rms=latent.detach().float().square().mean().sqrt(),
+                        source_residual_raw_rms=raw_residual.detach().float().square().mean().sqrt(),
+                        source_residual_rms=residual.detach().float().square().mean().sqrt())
+            latent = latent + residual
+            encoded = self.fusion.encode(p, q, latent.shape[-2:], edge=x[:, 1:2])
             self.scheduler.set_timesteps(self.config["sampling_steps"], device=x.device)
             count = int(self.config["sampling_steps"] * self.config["strength"])
             timesteps = self.scheduler.timesteps[-count:]
@@ -272,8 +296,17 @@ class FormalGenerator(nn.Module):
         if result.shape != (x.shape[0], 3, *x.shape[-2:]):
             raise ValueError("Generated RGB geometry changed")
         if self.fusion.collect_diagnostics:
-            self.output_diagnostics = dict(decoder_saturated_fraction=(result.detach().abs() > 1).float().mean(),
-                                           decoder_abs_max=result.detach().float().abs().max())
+            current = dict(decoder_saturated_fraction=(result.detach().abs() > 1).float().mean(),
+                           decoder_abs_max=result.detach().float().abs().max())
+            if self.quality_v3:
+                self.output_diagnostics.update(current)
+            else:
+                self.output_diagnostics = current
+        if self.quality_v3 or return_aux:
+            straight = (self.quality_v3 and self.config["quality"]["decoder_policy"] == "straight_through"
+                        and self.training and torch.is_grad_enabled())
+            output, penalty = bounded_decode(result, straight_through=straight)
+            return (output, dict(decoder_range=penalty)) if return_aux else output
         return result.float().clamp(-1, 1)
 
     def replay_loss(self, rgb, x, p, q, generator):
@@ -286,7 +319,7 @@ class FormalGenerator(nn.Module):
             noise = torch.randn(latent.shape, generator=generator).to(latent)
             t = torch.randint(0, self.noise_scheduler.config.num_train_timesteps,
                               (rgb.shape[0],), generator=generator).to(rgb.device)
-            encoded = self.fusion.encode(p, q, latent.shape[-2:])
+            encoded = self.fusion.encode(p, q, latent.shape[-2:], edge=x[:, 1:2])
             predicted = self._predict(self.noise_scheduler.add_noise(latent, noise, t), t, x, encoded,
                                       self.text[1:2].to(latent.dtype).expand(rgb.shape[0], -1, -1))
             kind = self.noise_scheduler.config.prediction_type

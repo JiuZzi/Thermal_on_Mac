@@ -39,12 +39,18 @@ def collect(cache, rgb_snapshot, inception, prior_archive):
     names=('rgb_prior_seed42_loss_v1.json','cycle_manifest.json','rgb_manifest.json')
     payloads={}
     originals={name:ROOT/'runs/learned_color'/('data_seed42_v1/'+name if name!='rgb_prior_seed42_loss_v1.json' else name) for name in names}
-    if all(p.is_file() for p in originals.values()):
-        payloads={f'{ASSET_DIR}/{name}':p.read_bytes() for name,p in originals.items()}
+    # Formal D consumes the cycle split and the already-fitted prior. The
+    # RGB-prior fitting manifest is optional and need not exist on Windows.
+    required=('rgb_prior_seed42_loss_v1.json','cycle_manifest.json')
+    if all(originals[name].is_file() for name in required):
+        payloads={f'{ASSET_DIR}/{name}':p.read_bytes() for name,p in originals.items() if p.is_file()}
     else:
         with tarfile.open(prior_archive,'r:gz') as archive:
+            members=set(archive.getnames())
             for name,path in originals.items():
-                payload=archive.extractfile(path.relative_to(ROOT).as_posix()).read()
+                member=path.relative_to(ROOT).as_posix()
+                if member not in members and name not in required:continue
+                payload=archive.extractfile(member).read()
                 if path.is_file() and payload!=path.read_bytes():raise ValueError('Frozen artifact differs from current local file: '+str(path))
                 payloads[f'{ASSET_DIR}/{name}']=payload
     return files,payloads
@@ -54,7 +60,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--cache-dir',type=Path,default=DEFAULT_CACHE)
-    parser.add_argument('--rgb-snapshot',type=Path,default=ROOT/'runs/pretrained/segformer_cityscapes_b2'/REVISION)
+    cached_rgb=DEFAULT_CACHE/('models--'+TEACHER.replace('/','--'))/'snapshots'/REVISION
+    default_rgb=cached_rgb if cached_rgb.is_dir() else ROOT/'runs/pretrained/segformer_cityscapes_b2'/REVISION
+    parser.add_argument('--rgb-snapshot',type=Path,default=default_rgb)
     parser.add_argument('--inception',type=Path,default=Path.home()/'.cache/torch/hub/checkpoints/weights-inception-2015-12-05-6726825d.pth')
     parser.add_argument('--prior-archive',type=Path,default=ROOT/'runs/checkpoints/rgb_prior_clarity_weights_20261028.tar.gz')
     args=parser.parse_args()

@@ -83,6 +83,12 @@ def metric_lines(row):
         auxiliary.append(f"color_w={number(row.get('color_weight'))}")
     replay = number(row.get("rgb_replay")) if row.get("rgb_replay_active") else "off"
     auxiliary.append(f"replay={replay}")
+    if "rgb_appearance_active" in row:
+        auxiliary.append("photo=" + (number(row.get("rgb_appearance")) if row["rgb_appearance_active"] else "off"))
+        for key, label in (("color_attraction", "chroma_fit"), ("edge_precision", "extra_edge"),
+                           ("decoder_saturated_fraction", "clip_frac")):
+            if key in row:
+                auxiliary.append(f"{label}={number(row[key])}")
     return [progress, main, "[AUX    ] " + " ".join(auxiliary)]
 
 
