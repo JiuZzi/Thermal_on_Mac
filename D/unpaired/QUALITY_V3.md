@@ -1,5 +1,62 @@
 # D-v3：RGB外观、解码范围与结构约束修订
 
+## 当前外观优化目标
+
+保住真实红外里的目标、位置和轮廓。外观侧重点是颜色割裂、整体或局部偏暗、人物和车辆泛白，以及可见光材质细节不足。训练与评估按来源分组，规则适用于采用同一语义映射的其他数据集。颜色和明暗目标来自各自训练 RGB，测试图像只用于冻结方案后的评估。
+
+### 合成红外与区域 Lab 分布
+
+`config_quality_v3_appearance.json` 启用完整外观配置。沿用 D-v3 的模型和条件缓存格式，使用新的 run 从已有完整检查点初始化。
+
+- **外观监督**每四步复用 RGB 循环已经构造的合成 TIR、E、P、Q。外观支路对这些条件断梯度，使用同一张真实 RGB 和它的教师掩码做对齐监督。原 RGB 循环继续训练反向生成器，RGB 噪声回放继续使用原自配对。合成红外仍存在域差距，收益要看真实红外验证图。
+- **明暗和色度分布**用 `D.unpaired.appearance` 从训练 RGB 缓存拟合。每类先在图内采可靠像素，再按图和来源组均衡汇总 `L*` 与四个 `ab` 投影的软累积分布。稀少类别需要至少两个训练组才启用，生成图上可靠性不足的区域跳过该项。真实 TIR 的生成分布按有效更新做滑动估计，使不同图像可以提供不同颜色模式。该项取代两项 GMM 惩罚，权重在首 1,000 次更新逐步升到 0.1。原 GMM token 仍用于模型条件。
+- **颜色过渡和细节**在原对齐外观损失内增加多尺度 `ab` 差分误差，使用目标 RGB 中的真实过渡作为参考。原灰度梯度细节项、E、内容和结构精度损失继续参与训练。颜色连续性和结构指标都要在留出数据上检查。
+
+三项可分别消融。`rgb_appearance_input` 可设为 `rgb_gray`，`appearance_chroma_detail` 可设为 `0`，`appearance_distribution_weight` 可设为 `0`。关闭分布项时省略 `--appearance-reference`。要比较旧 GMM 监督，恢复原配置中的两个 GMM 权重并关闭新分布项。每个实验使用独立 run，固定起始权重、训练预算、样本和评估协议。
+
+#### 拟合并短训
+
+在项目根目录执行。`D_PYTHON` 使用原 D-v3 CUDA 环境。`TRAIN_CACHE`、`VAL_CACHE`、`DATA_MANIFEST`、`COLOR_PRIOR`、`FMB` 使用原实验的路径，`INIT_CKPT` 指向 Ubuntu 上区域版的完整检查点目录。完整检查点包含 `generator.safetensors`、`reverse.safetensors`、`critics.safetensors` 及检查点记录。
+
+```bash
+REFERENCE="$PWD/runs/D/unpaired/appearance/train_lab_reference.json"
+
+"$D_PYTHON" -u -m D.unpaired.appearance \
+  --data-cache "$TRAIN_CACHE" --output "$REFERENCE"
+
+appearance_args=(
+  --name D_v3_appearance_u1000_seed42
+  --config D/unpaired/config_quality_v3_appearance.json
+  --data-cache "$TRAIN_CACHE" --validation-cache "$VAL_CACHE"
+  --data-manifest "$DATA_MANIFEST" --prior "$COLOR_PRIOR" --semantic-checkpoint "$FMB"
+  --appearance-reference "$REFERENCE"
+  --steps 1000 --save-every 1000 --log-every 20 --preview-every 0
+  --recovery-every 100 --validation-every 1000 --validation-device cpu --best-policy structure
+)
+
+"$D_PYTHON" -u -m D.unpaired.train "${appearance_args[@]}" \
+  --init-tir-checkpoint "$INIT_CKPT" --check-only &&
+"$D_PYTHON" -u -m D.unpaired.train "${appearance_args[@]}" \
+  --init-tir-checkpoint "$INIT_CKPT" --verify-updates 20 &&
+"$D_PYTHON" -u -m D.unpaired.train "${appearance_args[@]}" --resume
+```
+
+拟合完成显示 `[READY]`。可用 `--frames-per-group` 调整每组采样上限。更换训练缓存或可靠性阈值时重新拟合。预检显示 `[APPEAR] input=synthetic_tir` 和有效分布类别数，训练日志里的 `lab_dist` 分别记录明度和色度差异。训练恢复校验参考文件摘要并还原滑动统计。导出推理权重沿用原流程，推理读取原 GMM 条件文件。
+
+#### 验证颜色和结构
+
+对已完成的验证推理目录运行以下命令。`PREDICTIONS` 指包含 `prediction.json`、`records.json` 和 `images/` 的目录。可加 `--rgb-cache` 指向同一验证划分的完整 RGB 条件缓存，同时报告和真实 RGB 的区域分布距离。
+
+```bash
+"$D_PYTHON" -u -m D.unpaired.appearance_metrics \
+  --prediction-dir "$PREDICTIONS" --data-cache "$VAL_CACHE" \
+  --data-manifest "$DATA_MANIFEST" --output "$PREDICTIONS/appearance_metrics.json"
+```
+
+比较天空等区域的偏暗比例、人车偏白比例、色度分布与同类内部的颜色跳变。结合 Edge-F1、边缘精度、人车 AP 和同图裁剪判断，灰图也可能有很小的颜色跳变。外部已配准数据可以用 `D.unpaired.paired_metrics` 做独立的区域 ΔE00 与感知质量评估。
+
+## 原 D-v3 质量修订
+
 2026-11-01。针对已完成D V1五轮训练中灰白人物、块状材质、后期RGB分布退化的问题，增加显式的质量版本。工程与CPU检查不代表新训练的FID/KID已经改善；用户要求真实GPU短验证稍后进行，当前没有启动新GPU训练。
 
 ## 版本与目标
@@ -22,6 +79,14 @@
 默认每4步执行一次，独立建图/反传，随后释放，再进行噪声回放，避免同时保留多张扩散图。真实TIR仍是无配对；没有用另一张随机RGB作为TIR的像素目标。
 
 外观项由三级尺度RGB L1、Lab a/b L1、三级灰度梯度细节组成。权重为1、0.5、0.25，合成后乘 `loss_weights.rgb_appearance=2`，只在执行该任务的更新使用；没有隐含按间隔补偿权重。它学习曝光/材质/颜色，不保证解决RGB灰度到颜色的一对多歧义。
+
+#### 可选的区域均衡外观监督
+
+训练命令加入 `--rgb-appearance-region-balance` 启用 `class_balanced_lab_v1`。沿用训练 RGB 自配对及其 P/Q 缓存，给人、车、天空、植被等可靠类别区域分别计算与同图原始 RGB 对齐的 Lab 误差。每个区域先按 `P × Q` 求加权平均，再在有效类别之间取平均。
+
+区域监督使用 `Q >= 0.5` 且有效权重总和至少为 16 的类别。有效图像把原外观损失中全分辨率 RGB L1 的 25% 换为区域 L* 误差，把全图色度项的 25% 换为区域 a/b 误差。低分辨率重建和细节项按全图计算。没有有效类别的图像使用原全图外观损失。
+
+首轮沿用亮度对照实验的控制组参数、原 D-v3 第 11062 步完整检查点和已有缓存，选择新 run 名，只打开区域均衡选项。预检通过时 `[APPEAR]` 显示 `region balance=class_balanced_lab_v1`。自配对更新的摘要中 `photo_classes` 记录有效类别数，亮度和色度误差写入 `loss.jsonl`。验证 20 步后的同一 run 用相同策略和 `--resume` 继续。 [亮度对照实验命令](APPEARANCE_LUMA_AB.md)
 
 ### 2. 解码饱和保留修正梯度
 

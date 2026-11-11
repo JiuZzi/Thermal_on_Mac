@@ -6,6 +6,7 @@ import argparse
 from importlib import metadata
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import shutil
@@ -21,6 +22,8 @@ from .semantics import ConditionBuilder, RGBTeacher, default_semantic_checkpoint
 from .data import ConditionDataset, data_identity, on_device
 from .model import FormalGenerator
 from .engine import UnpairedEngine, NumericalFailure, auxiliary_networks
+from .quality import (APPEARANCE_LUMA_POLICY, APPEARANCE_REGION_POLICY, APPEARANCE_SYNTHETIC_TIR,
+                      FORMAT as QUALITY_FORMAT)
 from . import checkpoint as checkpoints
 from .progress import TrainingLog, TrainingTimer, cuda_memory_snapshot, duration, event
 
@@ -50,6 +53,8 @@ def validate_recovery(parent, identity):
     for key in ("config", "data", "prior_sha256", "versions", "initialization"):
         if parent[key] != identity[key]:
             raise ValueError(f"Full recovery must preserve {key}; use a new warm-start experiment for intentional changes")
+    if parent.get("appearance_reference_sha256") != identity.get("appearance_reference_sha256"):
+        raise ValueError("Full recovery must preserve the RGB appearance reference")
     if parent.get("validation") != identity.get("validation"):
         raise ValueError("Full recovery must preserve validation/best policy; register old results separately")
     for key in ("steps", "save_every", "log_every", "preview_every"):
@@ -217,7 +222,7 @@ def resolve_rgb_init(path):
     return path.resolve()
 
 
-def source_hashes(*, quality=False):
+def source_hashes(*, quality=False, appearance=False):
     names = ("__init__.py", "protocol.py", "model.py", "losses.py", "data.py", "semantics.py",
              "engine.py", "checkpoint.py", "report.py", "train.py")
     paths = [*[ROOT / "D/unpaired" / name for name in names], ROOT / "D/common.py",
@@ -229,12 +234,61 @@ def source_hashes(*, quality=False):
     paths.append(ROOT / RECOVERY_SOURCES)
     if quality:
         paths.append(ROOT / "D/unpaired/quality.py")
+    if appearance:
+        paths.append(ROOT / "D/unpaired/appearance.py")
     return {p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
             for p in sorted(paths)}
 
 
+def training_config(path, *, augment_luma=False, balance_regions=False):
+    # Record the training-only policy in run.json without changing the
+    # generator signature or the recipe that produces cached P/E/Q.
+    config = config_from(path)
+    if augment_luma:
+        config.setdefault("rgb_appearance_luma_augment", APPEARANCE_LUMA_POLICY)
+    if "rgb_appearance_luma_augment" in config and (
+        config["rgb_appearance_luma_augment"] != APPEARANCE_LUMA_POLICY
+        or config["format"] != QUALITY_FORMAT or not config["loss_weights"]["rgb_appearance"]
+    ):
+        raise ValueError("RGB appearance luma augmentation requires the D-v3 RGB appearance loss and smooth_field_v1")
+    if balance_regions:
+        config.setdefault("rgb_appearance_region_balance", APPEARANCE_REGION_POLICY)
+    if "rgb_appearance_region_balance" in config and (
+        config["rgb_appearance_region_balance"] != APPEARANCE_REGION_POLICY
+        or config["format"] != QUALITY_FORMAT or not config["loss_weights"]["rgb_appearance"]
+        or not (config["quality"]["appearance_rgb"] or config["quality"]["appearance_chroma"])
+    ):
+        raise ValueError("RGB appearance region balance requires class_balanced_lab_v1 and active D-v3 RGB or chroma appearance supervision")
+    quality_v3 = config["format"] == QUALITY_FORMAT
+    weights = config["loss_weights"]
+    if "rgb_appearance_input" in config and (
+        not quality_v3 or config["rgb_appearance_input"] not in ("rgb_gray", APPEARANCE_SYNTHETIC_TIR)
+        or not weights["rgb_appearance"]
+        or (config["rgb_appearance_input"] == APPEARANCE_SYNTHETIC_TIR and not weights["cycle_rgb"])
+    ):
+        raise ValueError("Synthetic TIR appearance requires active D-v3 appearance and RGB cycle")
+    if "appearance_chroma_detail" in config:
+        amount = config["appearance_chroma_detail"]
+        if (not quality_v3 or type(amount) not in (int, float) or not 0 <= amount <= 1
+            or (amount and not (weights["rgb_appearance"] and config["quality"]["appearance_detail"]))):
+            raise ValueError("Chroma detail must be in [0,1] and requires active D-v3 appearance detail")
+    if "appearance_distribution_weight" in config:
+        weight = config["appearance_distribution_weight"]
+        if not quality_v3 or type(weight) not in (int, float) or not math.isfinite(weight) or weight < 0:
+            raise ValueError("Appearance distribution weight must be nonnegative and finite on D-v3")
+        if weight and (weights["color_prior"] or weights["color_attraction"] or config["color_min_quality"] <= 0):
+            raise ValueError("Appearance distribution needs positive reliability and both GMM weights set to zero")
+    return config
+
+
 def execute(args):
-    config = config_from(args.config)
+    config = training_config(args.config,
+                             augment_luma=getattr(args, "rgb_appearance_luma_augment", False),
+                             balance_regions=getattr(args, "rgb_appearance_region_balance", False))
+    luma_policy = config.get("rgb_appearance_luma_augment", "off")
+    region_policy = config.get("rgb_appearance_region_balance", "off")
+    appearance_policy = (f"input={config.get('rgb_appearance_input', 'rgb_gray')} | luma augmentation={luma_policy}"
+                         f" | region balance={region_policy} | chroma detail={config.get('appearance_chroma_detail', 0.)}")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", args.name) or args.name in (".", ".."):
         raise ValueError("Use one safe run name")
     if min(args.steps, args.save_every, args.log_every, args.recovery_every) < 1 or min(args.preview_every,args.verify_updates) < 0:
@@ -253,6 +307,15 @@ def execute(args):
     legacy_models()
     from data.grouped_unaligned_dataset import validate_prior_partitions
     validate_prior_partitions(read_json(args.data_manifest), args.data_manifest.parent, args.prior)
+    reference_path = getattr(args, "appearance_reference", None)
+    distribution_enabled = bool(config.get("appearance_distribution_weight"))
+    if distribution_enabled != (reference_path is not None):
+        raise ValueError("Supply --appearance-reference exactly when appearance_distribution is enabled")
+    reference = None
+    if distribution_enabled:
+        from .appearance import RegionAppearanceDistribution, load_reference
+        reference = load_reference(reference_path, data["manifest_sha256"], config["color_min_quality"])
+        appearance_policy += f" | distribution classes={int(reference[1].sum())}"
     from .validation import validation_identity, TrainingValidation
     validation_plan = validation_identity(args, data["source"])
     folder = DEFAULT_RUNS / args.name
@@ -300,7 +363,8 @@ def execute(args):
                     prior_sha256=sha256(args.prior), initialization=initialization,
                     schedule=dict(steps=args.steps, save_every=args.save_every, log_every=args.log_every,
                                   preview_every=args.preview_every, recovery_every=args.recovery_every),
-                    code_sha256=source_hashes(quality=config["format"] == "D_unpaired_v3"),
+                    code_sha256=source_hashes(quality=config["format"] == "D_unpaired_v3",
+                                              appearance=distribution_enabled),
                     numerical_revision=NUMERICAL_REVISION, recovery=recovery,
                     versions={k:metadata.version(k) for k in ("torch", "torchvision", "diffusers", "transformers",
                               "numpy", "scipy", "scikit-image", "Pillow", "safetensors")},
@@ -308,15 +372,21 @@ def execute(args):
                            "seed42; unsupported deterministic CUDA kernels warn; pretrained RGB data is an extra prior")
     if validation_plan is not None:
         identity["validation"] = validation_plan
+    if reference is not None:
+        identity["appearance_reference_sha256"] = reference[2]
     if recovery_path is not None:
         validate_recovery(parent_identity,identity)
         if recovery["step"] > args.steps:
             raise ValueError("Recovery checkpoint exceeds the original training horizon")
+    if args.resume and previous != identity:
+        raise ValueError("Resume must preserve data, code, priors, model and schedule; use an explicit new warm-start run for changes")
     if args.check_only:
         event("CHECK", f"passed | TIR={len(tir_data)} RGB={len(rgb_data)} | input=[TIR,E,0]")
         event("CONFIG", f"{config['format']} | {config['width']}x{config['height']} | seed=42"
               f" | DDIM={int(config['sampling_steps']*config['strength'])} actual steps | target={args.steps} updates")
         event("INIT", initialization["kind"])
+        if config["format"] == QUALITY_FORMAT:
+            event("APPEAR", appearance_policy)
         if validation_plan is not None:
             event("VALIDATE", f"full val TIR={validation_plan['num_tir']} RGB={validation_plan['num_rgb']}"
                   f" | every={validation_plan['every']} | best policy={validation_plan['policy']}")
@@ -325,10 +395,7 @@ def execute(args):
         return
     if not torch.cuda.is_available():
         raise ValueError("CUDA required")
-    if args.resume:
-        if previous != identity:
-            raise ValueError("Resume must preserve data, code, priors, model and schedule; use an explicit new warm-start run for changes")
-    else:
+    if not args.resume:
         if folder.exists():
             raise ValueError("Preserve existing run; choose another name or --resume")
         folder.mkdir(parents=True)
@@ -375,7 +442,10 @@ def execute(args):
         teacher = RGBTeacher().to(config.get("semantic_loss_device", "cuda:0")) if config["loss_weights"]["semantic"] else None
         if teacher is not None and teacher.info != recipe["rgb_teacher"]:
             raise ValueError("RGB teacher differs from cache")
-        engine = UnpairedEngine(generator, reverse, critics, builder, teacher, config)
+        distribution = (RegionAppearanceDistribution(reference, config["color_min_quality"], "cuda:0")
+                        if reference is not None else None)
+        engine = UnpairedEngine(generator, reverse, critics, builder, teacher, config,
+                                appearance_distribution=distribution)
         streams = dict(TIR=IndexStream(len(tir_data), "TIR"), RGB=IndexStream(len(rgb_data), "RGB"))
         if args.resume and latest.exists():
             location,_ = checkpoints.locate(folder)
@@ -391,6 +461,8 @@ def execute(args):
         log.event("MODEL", f"{torch.cuda.get_device_name(0)} | trainable diffusion={trainable:,}"
                   f" | DDIM={int(config['sampling_steps']*config['strength'])} actual steps")
         log.event("DATA", f"TIR={len(tir_data)} RGB={len(rgb_data)} | start={step} target={args.steps} updates")
+        if config["format"] == QUALITY_FORMAT:
+            log.event("APPEAR", appearance_policy)
         log.event("METRICS", "G is weighted total; cycle/AUX are raw losses; replay=off means not scheduled")
         baseline = folder / "previews/step_000000"
         from .report import preview
@@ -428,6 +500,12 @@ def main():
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--init-rgb-run", type=Path)
     parser.add_argument("--init-tir-checkpoint", type=Path)
+    parser.add_argument("--rgb-appearance-luma-augment", action="store_true",
+                        help="Apply smooth gray-level variation to the D-v3 appearance input")
+    parser.add_argument("--rgb-appearance-region-balance", action="store_true",
+                        help="Balance aligned D-v3 RGB appearance supervision across reliable semantic classes")
+    parser.add_argument("--appearance-reference", type=Path,
+                        help="Training-only Lab distribution fitted by D.unpaired.appearance")
     parser.add_argument("--recover-from-checkpoint", type=Path, help="New run with an audited numerical fix; retain full optimizer/data/RNG state and original step")
     parser.add_argument("--check-only", action="store_true")
     execute(parser.parse_args())

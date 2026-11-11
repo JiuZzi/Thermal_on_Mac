@@ -8,7 +8,9 @@ from .semantics import legacy_models
 from .protocol import ReplayPool
 from .checkpoint import capture_rng, restore_rng
 from .losses import edge_preservation, spatial_content, semantic_consistency, chroma_smoothness, lsgan
-from .quality import rgb_appearance, color_attraction, unsupported_structure
+from .quality import (APPEARANCE_DISTRIBUTION, APPEARANCE_LUMA_POLICY, APPEARANCE_REGION_POLICY,
+                      APPEARANCE_SYNTHETIC_TIR, augment_appearance_gray, color_attraction,
+                      rgb_appearance, unsupported_structure)
 
 
 class NumericalFailure(RuntimeError):
@@ -35,11 +37,15 @@ def auxiliary_networks(device):
 
 
 class UnpairedEngine:
-    def __init__(self, generator, reverse, critics, builder, rgb_teacher, config, *, device="cuda:0"):
+    def __init__(self, generator, reverse, critics, builder, rgb_teacher, config, *, device="cuda:0",
+                 appearance_distribution=None):
         self.generator, self.reverse, self.critics = generator, reverse, critics
         self.builder, self.rgb_teacher, self.config = builder, rgb_teacher, config
         self.device = device
         self.quality_v3 = config.get("format") == "D_unpaired_v3"
+        if bool(config.get("appearance_distribution_weight")) != (appearance_distribution is not None):
+            raise ValueError("Active appearance distribution needs its verified RGB training reference")
+        self.appearance_distribution = appearance_distribution
         self.params_diffusion = [p for p in generator.parameters() if p.requires_grad]
         self.params_reverse = list(reverse.parameters())
         self.params_g = self.params_diffusion + self.params_reverse
@@ -143,10 +149,13 @@ class UnpairedEngine:
             group["lr"] = self.config["lr_discriminator"] * warm * decay
 
     def _weight(self, key, color_ramp=1.):
+        if key == APPEARANCE_DISTRIBUTION:
+            return self.config["appearance_distribution_weight"] * color_ramp
         name = "adversarial" if key.startswith("adversarial") else key
         if name.startswith("decoder_range"):
             name = "decoder_range"
-        return self.config["loss_weights"][name] * (color_ramp if name in ("color_prior", "color_attraction") else 1.)
+        ramped = ("color_prior", "color_attraction")
+        return self.config["loss_weights"][name] * (color_ramp if name in ramped else 1.)
 
     def _objective_probes(self, terms, losses, *, color_ramp=1.):
         """Rare, uncommitted gradient observations; no optimizer/RNG changes."""
@@ -175,6 +184,9 @@ class UnpairedEngine:
         self.opt_g.zero_grad(set_to_none=True)
         losses = {}
         probe = self.quality_v3 and diagnostics and (step+1) % self.config["quality"]["gradient_probe_every"] == 0
+        appearance_due = (self.quality_v3 and bool(weights["rgb_appearance"]) and
+                          (step+1) % self.config["quality"]["appearance_every"] == 0)
+        synthetic_appearance = appearance_due and self.config.get("rgb_appearance_input") == APPEARANCE_SYNTHETIC_TIR
         # First graph: TIR -> RGB -> reconstructed TIR.
         self.phase = "tir_forward"
         if self.quality_v3:
@@ -187,8 +199,8 @@ class UnpairedEngine:
             losses.update(g.output_diagnostics)
             losses["rgb_replay_active"] = int(bool(weights["rgb_replay"]) and (step+1) % self.config["replay_every"] == 0)
             if self.quality_v3:
-                losses["rgb_appearance_active"] = int(bool(weights["rgb_appearance"]) and
-                    (step+1) % self.config["quality"]["appearance_every"] == 0)
+                losses["rgb_appearance_active"] = int(appearance_due)
+                losses["rgb_appearance_synthetic"] = int(synthetic_appearance)
         real_tir = tir["x"][:, :1] * 2 - 1
         terms = dict(adversarial_rgb=lsgan(critics["RGB"](fake_rgb), True))
         if weights["cycle_tir"]:
@@ -208,6 +220,11 @@ class UnpairedEngine:
             quality = tir["q"] if self.config.get("chroma_smooth_policy", "legacy") == "quality_soft" else None
             terms["chroma_smooth"] = chroma_smoothness(fake_rgb, tir["x"][:,1:2], tir["p"], quality,
                                                       minimum=self.config["semantic_min_quality"])
+        if self.appearance_distribution is not None:
+            distribution, next_history, components = self.appearance_distribution.loss(
+                fake_rgb, tir["p"], tir["q"], step=step)
+            terms[APPEARANCE_DISTRIBUTION] = distribution
+            losses.update(components)
         if self.quality_v3:
             if weights["decoder_range"]:
                 terms["decoder_range"] = auxiliary["decoder_range"]
@@ -233,7 +250,8 @@ class UnpairedEngine:
             else:
                 losses.update({f"weighted_{key}": (value * (weights["adversarial"] if key.startswith("adversarial") else weights[key]) *
                               (color_ramp if key == "color_prior" else 1.)).detach() for key, value in terms.items()})
-            losses["color_weight"] = weights["color_prior"] * color_ramp
+            color_objective = APPEARANCE_DISTRIBUTION if self.appearance_distribution is not None else "color_prior"
+            losses["color_weight"] = self._weight(color_objective, color_ramp)
         if probe:
             self._objective_probes(terms, losses, color_ramp=color_ramp)
         self.scaler.scale(loss).backward()
@@ -251,6 +269,10 @@ class UnpairedEngine:
         terms = dict(adversarial_tir=lsgan(critics["TIR"](fake_tir), True))
         if weights["cycle_rgb"]:
             sx, sp, sq = self.builder.synthetic(fake_tir)
+            if synthetic_appearance:
+                # Reuse these coordinates and conditions. The extra appearance
+                # objective updates the forward generator only.
+                appearance_inputs = (sx.detach(), sp.detach(), sq.detach())
             self.phase = "rgb_cycle_forward"
             if self.quality_v3:
                 reconstructed, auxiliary = g(sx, sp, sq, generator=self.noise_rng, return_aux=True)
@@ -278,13 +300,23 @@ class UnpairedEngine:
             if self.quality_v3:
                 del auxiliary
 
-        # Actual RGB-gray -> RGB forward supervision, including SourceAdapter.
-        # This graph uses a known self-pair and is freed before noise replay.
-        if self.quality_v3 and weights["rgb_appearance"] and (step+1) % self.config["quality"]["appearance_every"] == 0:
+        # The target always comes from the RGB image that produced the condition.
+        if appearance_due:
             self.phase = "rgb_appearance_forward"
-            appearance, auxiliary = g(rgb["x"], rgb["p"], rgb["q"], generator=self.noise_rng, return_aux=True)
+            if not synthetic_appearance:
+                appearance_inputs = (rgb["x"], rgb["p"], rgb["q"])
+            appearance_x, appearance_p, appearance_q = appearance_inputs
+            if self.config.get("rgb_appearance_luma_augment") == APPEARANCE_LUMA_POLICY:
+                appearance_x = augment_appearance_gray(appearance_x, seed=self.config["seed"], step=step)
+                if diagnostics:
+                    losses["rgb_appearance_luma_delta"] = (appearance_x[:, :1] - appearance_inputs[0][:, :1]).abs().mean()
+            appearance, auxiliary = g(appearance_x, appearance_p, appearance_q, generator=self.noise_rng, return_aux=True)
             self._require_finite(appearance, "rgb_appearance_forward")
-            value, components = rgb_appearance(appearance, rgb["rgb"], self.config["quality"])
+            semantics = None
+            if self.config.get("rgb_appearance_region_balance") == APPEARANCE_REGION_POLICY:
+                semantics = (rgb["p"], rgb["q"])
+            value, components = rgb_appearance(appearance, rgb["rgb"], self.config["quality"], semantics=semantics,
+                                               chroma_detail=self.config.get("appearance_chroma_detail", 0.))
             terms = dict(rgb_appearance=value)
             if weights["decoder_range"]:
                 terms["decoder_range_rgb"] = auxiliary["decoder_range"]
@@ -299,7 +331,7 @@ class UnpairedEngine:
             self.scaler.scale(loss).backward()
             self._check_gradients(self.params_g, "rgb_appearance_backward")
             losses.update({key:value.detach() for key, value in terms.items()})
-            del appearance, auxiliary, terms, loss, value, components
+            del appearance_inputs, appearance_x, appearance_p, appearance_q, appearance, auxiliary, terms, loss, value, components
 
         # Replay has its own graph; it never uses a randomly paired RGB target.
         if weights["rgb_replay"] and (step+1) % self.config["replay_every"] == 0:
@@ -353,18 +385,22 @@ class UnpairedEngine:
         self.scaler.step(self.opt_g)
         self.opt_d.step()
         self.scaler.update()
+        if self.appearance_distribution is not None:
+            self.appearance_distribution.history = next_history
         self.opt_g.zero_grad(set_to_none=True); self.opt_d.zero_grad(set_to_none=True)
         losses.update(D_RGB=d_rgb.detach(), D_TIR=d_tir.detach(), grad_norm=norm.detach())
         return True, losses
 
     def state(self):
-        return dict(opt_g=self.opt_g.state_dict(), opt_d=self.opt_d.state_dict(), scaler=self.scaler.state_dict(),
-                    noise_rng=self.noise_rng.get_state(), patch_rng=self.patch_rng.get_state(),
-                    rgb_pool=self.rgb_pool.state(), tir_pool=self.tir_pool.state(),
-                    numerical_failures_total=self.numerical_failures_total)
+        state = dict(opt_g=self.opt_g.state_dict(), opt_d=self.opt_d.state_dict(), scaler=self.scaler.state_dict(),
+                     noise_rng=self.noise_rng.get_state(), patch_rng=self.patch_rng.get_state(),
+                     rgb_pool=self.rgb_pool.state(), tir_pool=self.tir_pool.state(),
+                     numerical_failures_total=self.numerical_failures_total)
+        if self.appearance_distribution is not None:
+            state["appearance_history"] = self.appearance_distribution.history.detach().cpu()
+        return state
 
-    @staticmethod
-    def validate_state(state):
+    def validate_state(self, state):
         for name in ("opt_g", "opt_d"):
             if any(not torch.isfinite(value).all() for item in state[name]["state"].values()
                    for value in item.values() if torch.is_tensor(value)):
@@ -372,6 +408,10 @@ class UnpairedEngine:
         scale = state.get("scaler", {}).get("scale")
         if scale is not None and (not 0 < float(scale) < float("inf")):
             raise ValueError("Refuse invalid AMP scale")
+        if self.appearance_distribution is not None:
+            self.appearance_distribution.validate_history(state.get("appearance_history"))
+        elif "appearance_history" in state:
+            raise ValueError("Restore appearance history only in a matching appearance run")
 
     def restore(self, state):
         self.validate_state(state)
@@ -380,3 +420,5 @@ class UnpairedEngine:
         self.noise_rng.set_state(state["noise_rng"]); self.patch_rng.set_state(state["patch_rng"])
         self.rgb_pool.restore(state["rgb_pool"]); self.tir_pool.restore(state["tir_pool"])
         self.numerical_failures_total = state.get("numerical_failures_total", 0)
+        if self.appearance_distribution is not None:
+            self.appearance_distribution.history = state["appearance_history"].to(self.device)

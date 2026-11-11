@@ -81,10 +81,24 @@ def metric_lines(row):
                   ("color_prior", "color"), ("chroma_smooth", "smooth")) if key in row]
     if "color_prior" in row:
         auxiliary.append(f"color_w={number(row.get('color_weight'))}")
+    if "appearance_distribution" in row:
+        auxiliary.append(f"lab_dist={number(row['appearance_distribution'])}"
+                         f" (L={number(row.get('appearance_dist_lightness'))},"
+                         f" ab={number(row.get('appearance_dist_chroma'))},"
+                         f" classes={number(row.get('appearance_dist_classes'))},"
+                         f" w={number(row.get('color_weight'))})")
     replay = number(row.get("rgb_replay")) if row.get("rgb_replay_active") else "off"
     auxiliary.append(f"replay={replay}")
     if "rgb_appearance_active" in row:
         auxiliary.append("photo=" + (number(row.get("rgb_appearance")) if row["rgb_appearance_active"] else "off"))
+        if row.get("rgb_appearance_synthetic"):
+            auxiliary.append("photo_input=synthetic_tir")
+        if "rgb_appearance_chroma_detail" in row:
+            auxiliary.append(f"photo_ab_detail={number(row['rgb_appearance_chroma_detail'])}")
+        if "rgb_appearance_luma_delta" in row:
+            auxiliary.append(f"luma_aug={number(row['rgb_appearance_luma_delta'])}")
+        if "rgb_appearance_region_classes" in row:
+            auxiliary.append(f"photo_classes={number(row['rgb_appearance_region_classes'])}")
         for key, label in (("color_attraction", "chroma_fit"), ("edge_precision", "extra_edge"),
                            ("decoder_saturated_fraction", "clip_frac")):
             if key in row:

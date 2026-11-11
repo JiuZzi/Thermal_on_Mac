@@ -32,6 +32,8 @@ DEFAULT_THERMAL_ROOT = Path("/Users/tanwenjie/代码/thermal")
 DEFAULT_RAW_ROOT = DEFAULT_THERMAL_ROOT / "FLIR_ADAS_v2"
 DEFAULT_OUTPUT_ROOT = DEFAULT_THERMAL_ROOT / "FLIR_datasets"
 DEFAULT_PROTOCOL_ROOT = DEFAULT_THERMAL_ROOT / "FLIR_protocol_v2"
+PEARL_RESIZE_SIZE = (500, 400)
+PEARL_CROP_BOX = (70, 56, 430, 344)
 
 # A = daytime visible RGB; B = nighttime 8-bit thermal images.
 # We use validation images only for testA/testB so no source frame crosses
@@ -133,11 +135,7 @@ def validate_records(records: Iterable[Record]) -> None:
 def pearl_geometry(image: Image.Image, domain: str) -> Image.Image:
     """Apply PearlGAN's documented offline geometry: 500x400 then 360x288 crop."""
     mode = "RGB" if domain == "rgb" else "L"
-    image = image.convert(mode)
-    image = image.resize((500, 400), Image.Resampling.BICUBIC)
-    left = (500 - 360) // 2
-    top = (400 - 288) // 2
-    return image.crop((left, top, left + 360, top + 288))
+    return image.convert(mode).resize(PEARL_RESIZE_SIZE, Image.Resampling.BICUBIC).crop(PEARL_CROP_BOX)
 
 
 def write_images(records: Iterable[Record], output_root: Path, overwrite: bool) -> tuple[int, int]:

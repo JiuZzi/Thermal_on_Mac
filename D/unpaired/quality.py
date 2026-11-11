@@ -1,5 +1,6 @@
 """Opt-in D-v3 appearance objectives; no additional pretrained models or C channel."""
 
+import hashlib
 import math
 
 import torch
@@ -8,6 +9,13 @@ from torch.nn import functional as F
 from .losses import gray01, gradients
 
 FORMAT = "D_unpaired_v3"
+APPEARANCE_LUMA_POLICY = "smooth_field_v1"
+APPEARANCE_REGION_POLICY = "class_balanced_lab_v1"
+APPEARANCE_SYNTHETIC_TIR = "synthetic_tir"
+APPEARANCE_DISTRIBUTION = "appearance_distribution"
+APPEARANCE_REGION_BLEND = .25
+APPEARANCE_REGION_MIN_QUALITY = .5
+APPEARANCE_REGION_MIN_MASS = 16.
 EXTRA_LOSSES = {"rgb_appearance", "decoder_range", "color_attraction", "edge_precision"}
 QUALITY_KEYS = {
     "decoder_policy", "boundary_context", "appearance_every", "appearance_rgb",
@@ -53,8 +61,51 @@ def structure_quality(quality, edge, radius=2):
     return (quality + (nearby - quality) * support).clamp(0, 1)
 
 
-def rgb_appearance(generated, reference, settings):
-    """Known RGB-gray/RGB self-pairs, without randomly paired TIR/RGB targets."""
+@torch.no_grad()
+def augment_appearance_gray(condition, *, seed, step):
+    """Vary the gray input of an RGB self-pair while retaining its geometry."""
+    # The same committed-update index yields the same field on retry or resume,
+    # without consuming the diffusion noise, patch or global RNG streams.
+    key = hashlib.sha256(f"{APPEARANCE_LUMA_POLICY}:{seed}:{step}".encode()).digest()[:8]
+    rng = torch.Generator(device="cpu").manual_seed(int.from_bytes(key, "little"))
+    grid = 2 * torch.rand((condition.shape[0], 1, 3, 3), generator=rng, dtype=torch.float32, device="cpu") - 1
+    field = F.interpolate(grid.to(condition.device), size=condition.shape[-2:], mode="bicubic", align_corners=False)
+    offset = 0.15 * field / field.abs().amax(dim=(-2, -1), keepdim=True).clamp_min(1)
+    gray = condition[:, :1].float()
+    # At each position this curve is monotone and fixes black and white.
+    warped = (gray + offset * (4 * gray * (1 - gray))).clamp(0, 1)
+    return torch.cat((warped.to(condition.dtype), condition[:, 1:]), dim=1)
+
+
+@torch.no_grad()
+def appearance_class_weights(probabilities, quality, shape, minimum):
+    """Weight reliable semantic interiors in the image's own coordinates."""
+    batch, _, height, width = shape
+    if (probabilities.ndim != 4 or probabilities.shape[1] < 2 or
+        probabilities.shape[0] != batch or probabilities.shape[-2:] != (height, width) or
+        quality.shape != (batch, 1, height, width)):
+        raise ValueError("Appearance P/Q must share the RGB image geometry")
+    probabilities, quality = probabilities.float(), quality.float()
+    labels = probabilities.argmax(1, keepdim=True)
+    # Channel zero combines unrelated background categories.
+    classes = torch.arange(1, probabilities.shape[1], device=labels.device)[None, :, None, None]
+    weights = probabilities[:, 1:] * quality
+    return weights.mul_(labels == classes).mul_(quality >= minimum)
+
+
+@torch.no_grad()
+def _appearance_region_weights(probabilities, quality, shape):
+    """Equal weight per reliable labeled class in each aligned RGB image."""
+    weights = appearance_class_weights(probabilities, quality, shape, APPEARANCE_REGION_MIN_QUALITY)
+    mass = weights.sum((-2, -1), keepdim=True)
+    active = mass >= APPEARANCE_REGION_MIN_MASS
+    weights.mul_(active).div_(mass.clamp_min(APPEARANCE_REGION_MIN_MASS))
+    count = active.sum(1, keepdim=True)
+    return weights.sum(1, keepdim=True) / count.clamp_min(1), count.flatten()
+
+
+def rgb_appearance(generated, reference, settings, *, semantics=None, chroma_detail=0.):
+    """Aligned visible targets for gray or detached synthetic thermal inputs."""
     if generated.shape != reference.shape or generated.ndim != 4 or generated.shape[1] != 3:
         raise ValueError("Aligned RGB self-pairs must share [N,3,H,W] geometry")
     target = reference.detach().float()
@@ -66,13 +117,44 @@ def rgb_appearance(generated, reference, settings):
         reconstruction = reconstruction + F.l1_loss(y, t) / 3
         gx, gy = gradients(gray01(y)); tx, ty = gradients(gray01(t))
         detail = detail + (F.l1_loss(gx, tx) + F.l1_loss(gy, ty)) / 6
-    y_ab = _lab((generated.float() + 1) / 2)[:, 1:] / 128
-    t_ab = _lab((target + 1) / 2)[:, 1:] / 128
+    y_lab, t_lab = _lab((generated.float() + 1) / 2), _lab((target + 1) / 2)
+    y_ab, t_ab = y_lab[:, 1:] / 128, t_lab[:, 1:] / 128
     chroma = F.l1_loss(y_ab, t_ab)
+    components = {}
+    if chroma_detail:
+        # Match the target's chroma transitions, including legitimate boundaries.
+        # A constant color offset remains the job of the Lab reconstruction.
+        delta = y_ab - t_ab
+        color_detail = generated.sum() * 0
+        for scale in (1, 2, 4):
+            pooled = F.avg_pool2d(delta, scale) if scale > 1 else delta
+            dx, dy = pooled.diff(dim=-1), pooled.diff(dim=-2)
+            color_detail = color_detail + (dx.abs().mean() + dy.abs().mean()) / 6
+        detail = detail + chroma_detail * color_detail
+        components["rgb_appearance_chroma_detail"] = color_detail.detach()
+    if semantics is not None:
+        region_weights, class_count = _appearance_region_weights(*semantics, target.shape)
+        active = class_count > 0
+        mix = APPEARANCE_REGION_BLEND * active.float()
+        # L*/50 has the same nominal range as the full-resolution RGB error.
+        # Blend only that reconstruction scale and chroma, retaining coarse RGB and detail.
+        lightness_error = (y_lab[:, :1] - t_lab[:, :1]).abs() / 50
+        chroma_error = (y_ab - t_ab).abs()
+        region_lightness = (lightness_error * region_weights).sum((1, 2, 3))
+        region_chroma = (chroma_error.mean(1, keepdim=True) * region_weights).sum((1, 2, 3))
+        full_rgb = (generated.float() - target).abs().mean((1, 2, 3))
+        full_chroma = chroma_error.mean((1, 2, 3))
+        reconstruction = reconstruction + ((region_lightness - full_rgb) * mix).mean() / 3
+        chroma = chroma + ((region_chroma - full_chroma) * mix).mean()
+        active_images = active.sum().clamp_min(1)
+        components.update(rgb_appearance_region_classes=class_count.float().mean(),
+                          rgb_appearance_region_lightness=region_lightness.detach().sum() / active_images,
+                          rgb_appearance_region_chroma=region_chroma.detach().sum() / active_images)
     total = (settings["appearance_rgb"] * reconstruction +
              settings["appearance_chroma"] * chroma + settings["appearance_detail"] * detail)
-    return total, dict(rgb_appearance_reconstruction=reconstruction.detach(),
-                       rgb_appearance_chroma=chroma.detach(), rgb_appearance_detail=detail.detach())
+    components.update(rgb_appearance_reconstruction=reconstruction.detach(),
+                      rgb_appearance_chroma=chroma.detach(), rgb_appearance_detail=detail.detach())
+    return total, components
 
 
 def color_attraction(prior, generated, probabilities, quality, minimum=.5):

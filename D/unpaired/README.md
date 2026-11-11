@@ -1,5 +1,7 @@
 # D：真实 TIR 无配对扩散训练
 
+**2026-11-11 外观优化**。`config_quality_v3_appearance.json` 复用合成红外进行区域外观监督，以按来源组拟合的 Lab 分布约束明暗和色度，并用真实 RGB 监督多尺度颜色过渡。[目标、训练和验证步骤](QUALITY_V3.md#当前外观优化目标)
+
 **2026-11-01 D-v3质量修订：**新增实际生成路径上的RGB自配对外观监督、带梯度的训练限幅与raw范围约束、连续弱颜色目标、粗结构精度、语义边界上下文、源残差预算及目标梯度诊断。显式配置为 `config_quality_v3.json`，另有同起始噪声的7步对照；默认V1不变。CPU验证与使用边界见 [QUALITY_V3.md](QUALITY_V3.md)，真实GPU短验证按用户要求稍后进行。
 
 **2026-10-30 验证集 best：**新增完整验证集选模、可恢复的指标评估和 `infer --best/--best-file`。主规则为 Edge-F1 最高，同分比较 FID/KID；同时记录结构、FID、KID 三个最优候选。使用 `--validation-cache` 显式启用，不改变训练轮数、学习率或损失。已有五轮结果可以直接登记，无需重训。命令及选择依据见 [BEST_CHECKPOINTS.md](BEST_CHECKPOINTS.md)。
@@ -189,6 +191,46 @@ Start-Process "$thermalRoot\runs\D\unpaired\training\D_tir_unpaired_clarity_pilo
 先看人车数量/位置/肢体、道路、建筑边界，再看颜色和割裂。场景错位时FID下降不算通过。E、P、Q都有误差，热图不能唯一决定真实颜色。`latest` 指最后完整检查点；显式传入完整 `--validation-cache` 后会自动登记 `best.json`。默认12张预览只用于观察，不参与best选择，详见 [BEST_CHECKPOINTS.md](BEST_CHECKPOINTS.md)。
 
 从服务器导出后在本地测试时，保留原run的 `run.json`、`latest.json` 及所选 `checkpoints/step_XXXXXX/` **完整目录**，不要把其中某个文件改名成GAN的 `.pth`。验证校验需要该目录的 `checkpoint.json`、三个 `.safetensors` 和 `training.pt`。本地再按相同配方准备test缓存；不必下载全部中间检查点。
+
+### FLIR 测试的补充指标
+
+本地 `D.unpaired.local_test` 生成完测试集后，直接对已有 RGB 输出算人车检测 AP。检测评估需要 `pycocotools==2.0.11`、原始 `FLIR_ADAS_v2/images_thermal_val/coco.json` 和固定的 COCO RGB 检测器权重。将权重放入 `runs/detectors/coco/`，也可用 `--detector-weights` 指定同一文件。 [官方 SSDLite320 COCO_V1 权重](https://download.pytorch.org/models/ssdlite320_mobilenet_v3_large_coco-a79551df.pth)
+
+```bash
+python -m D.unpaired.test_metrics \
+  --test-dir runs/D/unpaired/local_tests/D_quality_v3_ubuntu_seed42
+```
+
+`extended_metrics.json` 合并原 FID、KID、APCE-Py、Edge Precision、Edge-F1 以及 COCO AP@[.50:.95]、AP50、AP75。APCE-Py 就是当前口径的源边缘 Recall，因此汇总不重复列出 Recall。人车检测使用人工框，框坐标随原图缩放至 500×400，再按 360×288 中心裁剪并裁到图内。报告含整体、逐类和逐视频结果，视频内没有该类真值时 AP 记为 `null`。冻结的 RGB 检测器衡量生成图中目标的可检测性。要检验对红外检测的增量收益，需另做原始 TIR、TIR 加共同条件、再加生成表征的对照。
+
+有独立轮廓标注时，可加 `--boundary-gt-dir` 和 `--boundary-roi-dir`。两个目录各放一张同名 PNG，对应已审查的测试子集，尺寸与原始测试图一致。标注图以白色描出目标轮廓，ROI 图以白色标出已完整标注的区域。程序分别评送入扩散模型的 E 和生成 RGB 的 Canny 边缘，使用 2 像素一对一匹配，输出边界 Precision、Recall 和 F-score。E 的固定阈值为 0.5，RGB Canny 使用 sigma 1、低阈值 0.08、高阈值 0.16。分数写到独立的 `extended_metrics_with_boundaries.json`。
+
+### 配准外部数据的颜色与感知指标
+
+`D.unpaired.paired_metrics` 读取已完成的外部生成图，报告 **LPIPS-Squeeze、RGB SSIM、CIEDE2000 色差**。评估清单须来自真实配准的测试对，TIR、参考 RGB 和可选像素标签用相同 stem，生成图名为 `<stem>_fake_B.png`。所有图必须在同一像素坐标系下。FLIR 的 `testA` 和 `testB` 只用于上述无配对评估。
+
+例如可用本地 MSRS 官方测试集中预先固定的白天子集，生成后用下面格式的清单评估。标签和 `label_names` 可一起省略。带标签时，区域色差使用向内收缩 2 像素的类别区域，先按图求均值，再对有该类的图求均值。
+
+```json
+{
+  "format": "D_aligned_rgb_eval_v1",
+  "dataset": "MSRS-test-day",
+  "label_names": {"1": "car", "2": "person"},
+  "pairs": [
+    {"tir": "MSRS/test/ir/00537D.png", "rgb": "MSRS/test/vi/00537D.png",
+     "labels": "MSRS/test/Segmentation_labels/00537D.png"}
+  ]
+}
+```
+
+路径相对清单所在目录。LPIPS 所需的 SqueezeNet 权重从 `$TORCH_HOME/hub/checkpoints/` 读取。 [官方 SqueezeNet 权重](https://download.pytorch.org/models/squeezenet1_1-b8a52dc0.pth)
+
+```bash
+TORCH_HOME="$PWD/runs/D/torch_cache" python -m D.unpaired.paired_metrics \
+  --pair-manifest path/to/pairs.json \
+  --generated-dir path/to/external_generated \
+  --output path/to/paired_metrics.json
+```
 
 ## Ubuntu上传与命令
 

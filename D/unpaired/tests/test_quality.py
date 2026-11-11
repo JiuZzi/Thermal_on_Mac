@@ -14,11 +14,14 @@ from torch import nn
 
 from D.common import ROOT, write_json
 from D.unpaired import checkpoint
+from D.unpaired.appearance import CLASSES, RegionAppearanceDistribution, lab_cdf, region_samples
 from D.unpaired.engine import UnpairedEngine
 from D.unpaired.model import FormalGenerator
 from D.unpaired.protocol import config_from, IndexStream
-from D.unpaired.quality import (bounded_decode, bound_source_residual, color_attraction,
-                                rgb_appearance, unsupported_structure, structure_quality)
+from D.unpaired.quality import (APPEARANCE_LUMA_POLICY, APPEARANCE_REGION_POLICY, APPEARANCE_SYNTHETIC_TIR, augment_appearance_gray,
+                                bounded_decode, bound_source_residual, color_attraction, rgb_appearance,
+                                unsupported_structure, structure_quality)
+from D.unpaired.train import training_config
 from D.unpaired.tests.test_formal import bank, conditions
 from D.unpaired.tests.test_review import fusion, fused
 from D.tests import test_pipeline as tiny
@@ -84,6 +87,75 @@ class QualityObjectiveTests(unittest.TestCase):
         self.assertGreater(float(gray.grad.abs().sum()), 0)
         self.assertIsNone(reference.grad)
         self.assertEqual(set(components), {"rgb_appearance_reconstruction", "rgb_appearance_chroma", "rgb_appearance_detail"})
+
+    def test_region_appearance_weights_small_and_large_classes_equally(self):
+        settings = quality_config()["quality"]
+        person = torch.zeros(32, 32, dtype=torch.bool)
+        person[4:8, 4:12] = True
+        p = torch.zeros(1, 15, 32, 32)
+        p[:, 8], p[:, 1] = person, ~person
+        p.requires_grad_()
+        q = torch.full((1, 1, 32, 32), .9, requires_grad=True)
+        output = torch.zeros(1, 3, 32, 32, requires_grad=True)
+        small = torch.zeros_like(output)
+        large = torch.zeros_like(output)
+        small[:, 0, person] = .6
+        large[:, 0, ~person] = .6
+        small.requires_grad_()
+
+        original, _ = rgb_appearance(output, small, settings)
+        balanced, components = rgb_appearance(output, small, settings, semantics=(p, q))
+        _, large_components = rgb_appearance(output, large, settings, semantics=(p, q))
+        self.assertEqual(float(components["rgb_appearance_region_classes"]), 2)
+        for key in ("rgb_appearance_region_lightness", "rgb_appearance_region_chroma"):
+            self.assertGreater(float(components[key]), 0)
+            torch.testing.assert_close(components[key], large_components[key])
+        self.assertGreater(float(balanced), float(original))
+        balanced.backward()
+        self.assertTrue(torch.isfinite(output.grad).all())
+        self.assertIsNone(small.grad)
+        self.assertIsNone(p.grad)
+        self.assertIsNone(q.grad)
+
+    def test_region_appearance_falls_back_for_background_unreliable_and_tiny_masks(self):
+        settings = quality_config()["quality"]
+        p = torch.zeros(1, 15, 32, 32)
+        p[:, 0] = 1
+        p[:, 0, :8, :8] = 0
+        p[:, 7, :8, :8] = 1
+        p[:, 0, -2:, -2:] = 0
+        p[:, 9, -2:, -2:] = 1
+        q = torch.ones(1, 1, 32, 32)
+        q[:, :, :8, :8] = .49
+        reference = torch.full((1, 3, 32, 32), .3)
+        output = torch.zeros_like(reference, requires_grad=True)
+        expected, expected_components = rgb_appearance(output, reference, settings)
+        actual, components = rgb_appearance(output, reference, settings, semantics=(p, q))
+        torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+        for key, value in expected_components.items():
+            torch.testing.assert_close(components[key], value, rtol=0, atol=0)
+        self.assertEqual(float(components["rgb_appearance_region_classes"]), 0)
+        actual.backward()
+        self.assertTrue(torch.isfinite(output.grad).all())
+
+    def test_appearance_luma_field_is_bounded_and_does_not_consume_global_rng(self):
+        x, _, _ = conditions()
+        x = x.repeat(2, 1, 1, 1)
+        x[:, 0, :, 0] = 0
+        x[:, 0, :, -1] = 1
+        original = x.clone()
+        rng = torch.get_rng_state()
+        a = augment_appearance_gray(x, seed=42, step=3)
+        torch.testing.assert_close(a, augment_appearance_gray(x, seed=42, step=3), rtol=0, atol=0)
+        self.assertFalse(torch.equal(a, augment_appearance_gray(x, seed=42, step=7)))
+        self.assertFalse(torch.equal(a[0, 0], a[1, 0]))
+        self.assertTrue(torch.equal(torch.get_rng_state(), rng))
+        self.assertTrue(torch.equal(x, original))
+        self.assertTrue(torch.equal(a[:, 1:], x[:, 1:]))
+        self.assertTrue(torch.equal(a[:, 0, :, [0, -1]], x[:, 0, :, [0, -1]]))
+        self.assertGreaterEqual(float(a.min()), 0)
+        self.assertLessEqual(float(a.max()), 1)
+        self.assertLessEqual(float((a[:, 0] - x[:, 0]).abs().max()), 0.150001)
 
     def test_continuous_mixture_color_loss_escapes_the_old_gray_dead_zone(self):
         from D.unpaired.semantics import legacy_models
@@ -169,6 +241,36 @@ class QualityProtocolTests(unittest.TestCase):
             starts.append(int(t[0]));counts.append(len(t))
         self.assertEqual(starts,[301,301]);self.assertEqual(counts,[4,7])
 
+    def test_luma_augmentation_is_recorded_only_for_active_v3_appearance_training(self):
+        path = ROOT / "D/unpaired/config_quality_v3.json"
+        clean = training_config(path)
+        aug = training_config(path, augment_luma=True)
+        self.assertEqual(aug.pop("rgb_appearance_luma_augment"), APPEARANCE_LUMA_POLICY)
+        self.assertEqual(aug, clean)
+        with self.assertRaisesRegex(ValueError, "requires the D-v3 RGB appearance loss"):
+            training_config(ROOT / "D/unpaired/config.json", augment_luma=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "no_appearance.json"
+            clean["loss_weights"]["rgb_appearance"] = 0
+            write_json(path, clean)
+            with self.assertRaisesRegex(ValueError, "requires the D-v3 RGB appearance loss"):
+                training_config(path, augment_luma=True)
+
+    def test_region_balance_is_an_opt_in_training_policy(self):
+        path = ROOT / "D/unpaired/config_quality_v3.json"
+        clean = training_config(path)
+        enabled = training_config(path, balance_regions=True)
+        self.assertEqual(enabled.pop("rgb_appearance_region_balance"), APPEARANCE_REGION_POLICY)
+        self.assertEqual(enabled, clean)
+        with self.assertRaisesRegex(ValueError, "RGB appearance region balance"):
+            training_config(ROOT / "D/unpaired/config.json", balance_regions=True)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "detail_only.json"
+            clean["quality"].update(appearance_rgb=0, appearance_chroma=0)
+            write_json(path, clean)
+            with self.assertRaisesRegex(ValueError, "RGB appearance region balance"):
+                training_config(path, balance_regions=True)
+
 
 class QualityGeneratorTests(unittest.TestCase):
     def setUp(self):
@@ -183,7 +285,7 @@ class QualityGeneratorTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup();tiny.TinyPipelineTests.tearDownClass()
 
-    def engine(self, *, appearance_only=False):
+    def engine(self, *, appearance_only=False, distribution=False):
         x,p,q=conditions()
         class Builder:
             def synthetic(self,tir):
@@ -197,8 +299,18 @@ class QualityGeneratorTests(unittest.TestCase):
         if appearance_only:
             config['loss_weights']={name:0. for name in config['loss_weights']}
             config['loss_weights'].update(rgb_appearance=2.,decoder_range=.1)
-        engine=UnpairedEngine(self.model,reverse,critics,Builder(),Teacher(),config,device='cpu')
         sample=dict(x=x,p=p,q=q,rgb=torch.rand(1,3,64,64)*1.6-.8)
+        appearance = None
+        if distribution:
+            config.update(appearance_distribution_weight=.1, appearance_chroma_detail=.5,
+                          rgb_appearance_input=APPEARANCE_SYNTHETIC_TIR,
+                          rgb_appearance_region_balance=APPEARANCE_REGION_POLICY)
+            config["loss_weights"].update(color_prior=0., color_attraction=0.)
+            lab, active = region_samples(sample["rgb"], p, q, config["color_min_quality"])
+            reference = (lab_cdf(lab)[0] * active[0, :, None, None], active[0], "fixture")
+            appearance = RegionAppearanceDistribution(reference, config["color_min_quality"], "cpu")
+        engine=UnpairedEngine(self.model,reverse,critics,Builder(),Teacher(),config,device='cpu',
+                              appearance_distribution=appearance)
         return engine,sample
 
     def test_actual_rgb_forward_reaches_source_and_excludes_confidence(self):
@@ -248,6 +360,7 @@ class QualityGeneratorTests(unittest.TestCase):
 
     def test_failure_in_appearance_graph_retries_without_partial_commit_or_noise_advance(self):
         engine,sample=self.engine();before=engine.retry_state()
+        engine.config["rgb_appearance_luma_augment"] = APPEARANCE_LUMA_POLICY
         state={k:v.clone() for k,v in engine.generator.export_state().items()}
         original=engine._require_finite
         def fail(values,stage):
@@ -258,11 +371,14 @@ class QualityGeneratorTests(unittest.TestCase):
         self.assertFalse(applied);self.assertFalse(engine.opt_g.state);self.assertFalse(engine.opt_d.state)
         self.assertTrue(torch.equal(before['noise_rng'],engine.noise_rng.get_state()))
         for name,value in engine.generator.export_state().items():self.assertTrue(torch.equal(value,state[name]))
-        applied,_=engine.update(sample,sample,0,4,diagnostics=True)
+        applied,values=engine.update(sample,sample,0,4,diagnostics=True)
         self.assertTrue(applied)
+        self.assertGreater(float(values["rgb_appearance_luma_delta"]), 0)
 
     def test_full_state_resume_repeats_the_next_quality_update_exactly(self):
         engine,sample=self.engine();streams=dict(TIR=IndexStream(3,'TIR'),RGB=IndexStream(4,'RGB'))
+        engine.config["rgb_appearance_luma_augment"] = APPEARANCE_LUMA_POLICY
+        engine.config["rgb_appearance_region_balance"] = APPEARANCE_REGION_POLICY
         for step in range(3):
             applied,_=engine.update(sample,sample,step,8,diagnostics=True);self.assertTrue(applied)
         folder=Path(self.temp.name)/'run';folder.mkdir();write_json(folder/'run.json',{'fixture':'quality'})
@@ -294,6 +410,129 @@ class QualityGeneratorTests(unittest.TestCase):
         self.assertTrue(applied);self.assertEqual(forward.call_count,2)
         self.assertTrue(torch.equal(forward.call_args_list[-1].args[0],sample['x']))
         self.assertFalse(torch.equal(forward.call_args_list[-1].args[0],tir['x']))
+
+    def test_region_appearance_uses_the_rgb_samples_own_semantic_cache(self):
+        engine, rgb = self.engine(appearance_only=True)
+        engine.config["rgb_appearance_region_balance"] = APPEARANCE_REGION_POLICY
+        tir = dict(rgb, q=torch.zeros_like(rgb["q"]))
+        with (
+            patch.object(self.model, "forward", wraps=self.model.forward) as forward,
+            patch("D.unpaired.engine.rgb_appearance", wraps=rgb_appearance) as loss,
+        ):
+            applied, values = engine.update(tir, rgb, 0, 4, diagnostics=True)
+        self.assertTrue(applied)
+        self.assertEqual(forward.call_count, 2)
+        self.assertIs(loss.call_args.kwargs["semantics"][0], rgb["p"])
+        self.assertIs(loss.call_args.kwargs["semantics"][1], rgb["q"])
+        self.assertEqual(float(values["rgb_appearance_region_classes"]), 1)
+        self.assertGreater(float(values["rgb_appearance_region_chroma"]), 0)
+        self.assertGreater(float(values["grad_content_adapter"]), 0)
+
+    def test_pseudo_appearance_reuses_synthetic_inputs_without_reverse_gradients(self):
+        engine, rgb = self.engine(distribution=True)
+        cycle_builder = engine.builder.synthetic
+
+        def distinguish_conditions(fake_tir):
+            x, p, q = cycle_builder(fake_tir)
+            return x, p.roll(1, dims=1), q * .75
+
+        def check_loss(generated, target, settings, **kwargs):
+            loss, components = rgb_appearance(generated, target, settings, **kwargs)
+            reverse_grads = torch.autograd.grad(loss, tuple(engine.reverse.parameters()),
+                                                allow_unused=True, retain_graph=True)
+            self.assertTrue(all(grad is None for grad in reverse_grads))
+            self.assertIs(target, rgb["rgb"])
+            self.assertIs(kwargs["semantics"][0], rgb["p"])
+            self.assertIs(kwargs["semantics"][1], rgb["q"])
+            return loss, components
+
+        with (
+            patch.object(engine.builder, "synthetic", side_effect=distinguish_conditions) as build,
+            patch.object(self.model, "forward", wraps=self.model.forward) as forward,
+            patch("D.unpaired.engine.rgb_appearance", side_effect=check_loss),
+        ):
+            applied, values = engine.update(rgb, rgb, 0, 4, diagnostics=True)
+        self.assertTrue(applied)
+        self.assertEqual(build.call_count, 1)
+        self.assertEqual(forward.call_count, 3)
+        cycle_inputs, appearance_inputs = (call.args for call in forward.call_args_list[-2:])
+        self.assertTrue(cycle_inputs[0].requires_grad)
+        for original, reused in zip(cycle_inputs, appearance_inputs):
+            self.assertFalse(reused.requires_grad)
+            torch.testing.assert_close(original, reused, rtol=0, atol=0)
+        self.assertFalse(torch.equal(rgb["p"], appearance_inputs[1]))
+        self.assertEqual(values["rgb_appearance_synthetic"], 1)
+        self.assertGreater(float(values["rgb_appearance_chroma_detail"]), 0)
+        self.assertGreater(float(values["appearance_dist_classes"]), 0)
+        self.assertNotIn("color_prior", values)
+        self.assertNotIn("color_attraction", values)
+        torch.testing.assert_close(values["G_total"], sum(v for k, v in values.items() if k.startswith("weighted_")))
+
+    def test_distribution_history_commits_once_and_is_restored(self):
+        engine, sample = self.engine(distribution=True)
+        distribution = engine.appearance_distribution
+        initial = distribution.history.clone()
+        self.assertEqual(initial.shape[0], len(CLASSES))
+        original = engine._require_finite
+
+        def fail(values, stage):
+            if stage == "rgb_appearance_forward":
+                raise FloatingPointError("forced precommit failure")
+            return original(values, stage)
+
+        with patch.object(engine, "_require_finite", side_effect=fail):
+            self.assertFalse(engine.update(sample, sample, 0, 4)[0])
+        torch.testing.assert_close(distribution.history, initial, rtol=0, atol=0)
+        self.assertTrue(engine.update(sample, sample, 0, 4)[0])
+        committed = distribution.history.clone()
+        self.assertFalse(torch.equal(initial, committed))
+        folder = Path(self.temp.name) / "appearance_run"
+        folder.mkdir()
+        write_json(folder / "run.json", {"fixture": "appearance"})
+        streams = {"TIR": IndexStream(2, "TIR"), "RGB": IndexStream(2, "RGB")}
+        location = checkpoint.save(folder, 1, engine, streams)
+        self.assertTrue(engine.update(sample, sample, 1, 4)[0])
+        next_history = distribution.history.clone()
+        expected = {k: v.clone() for k, v in engine.generator.export_state().items()}
+        self.assertEqual(checkpoint.restore(folder, location, engine, streams), 1)
+        torch.testing.assert_close(distribution.history, committed, rtol=0, atol=0)
+        self.assertTrue(engine.update(sample, sample, 1, 4)[0])
+        torch.testing.assert_close(distribution.history, next_history, rtol=0, atol=0)
+        for name, value in engine.generator.export_state().items():
+            torch.testing.assert_close(value, expected[name], rtol=0, atol=0)
+
+    def test_luma_augmentation_isolated_to_rgb_appearance_input_and_noise_is_matched(self):
+        engine, rgb = self.engine()
+        control = copy.deepcopy(engine)
+        engine.config["rgb_appearance_luma_augment"] = APPEARANCE_LUMA_POLICY
+        tir = dict(rgb, x=rgb["x"].clone())
+        tir["x"][:, :1] *= 0.5
+        original = rgb["x"].clone()
+        step = engine.config["replay_every"] - 1
+        global_rng = checkpoint.capture_rng()
+        applied, clean = control.update(tir, rgb, step, 8, diagnostics=True)
+        self.assertTrue(applied)
+        self.assertNotIn("rgb_appearance_luma_delta", clean)
+        checkpoint.restore_rng(global_rng)
+        with (
+            patch.object(self.model, "forward", wraps=self.model.forward) as forward,
+            patch.object(self.model, "replay_loss", wraps=self.model.replay_loss) as replay,
+            patch("D.unpaired.engine.rgb_appearance", wraps=rgb_appearance) as loss,
+        ):
+            applied, aug = engine.update(tir, rgb, step, 8, diagnostics=True)
+        self.assertTrue(applied)
+        self.assertGreater(float(aug["rgb_appearance_luma_delta"]), 0)
+        torch.testing.assert_close(forward.call_args_list[0].args[0], tir["x"], rtol=0, atol=0)
+        appearance_x, appearance_p, appearance_q = forward.call_args_list[-1].args
+        expected = augment_appearance_gray(original, seed=engine.config["seed"], step=step)
+        torch.testing.assert_close(appearance_x, expected, rtol=0, atol=0)
+        self.assertIs(appearance_p, rgb["p"])
+        self.assertIs(appearance_q, rgb["q"])
+        self.assertIs(loss.call_args.args[1], rgb["rgb"])
+        self.assertIs(replay.call_args.args[1], rgb["x"])
+        self.assertTrue(torch.equal(rgb["x"], original))
+        self.assertTrue(torch.equal(engine.noise_rng.get_state(), control.noise_rng.get_state()))
+        self.assertTrue(torch.equal(engine.patch_rng.get_state(), control.patch_rng.get_state()))
 
     def test_quality_switches_can_reproduce_the_legacy_forward_exactly(self):
         x,p,q=conditions();q[:,:,::4]=0
